@@ -1,16 +1,16 @@
-import { Datasource } from 'typeorm'
+import { DataSource } from 'typeorm'
 import dotenv from "dotenv";
 import { User } from "../entities/User";
 import envs from './environment-vars';
 
 dotenv.config();
-    export const AppDataSource = new Datasource({
+    export const AppDataSource = new DataSource({
         type: "postgres",
         port: Number(envs.DB_PORT),
         username: envs.DB_USER,
         password: envs.DB_PASSWORD,
         database: envs.DB_NAME,
-        schema: "users",
+        schema: "public",
         synchronize:true,
         logging:true,
         entities: [User],

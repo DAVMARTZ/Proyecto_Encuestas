@@ -1,5 +1,7 @@
+import bcrypt from "bcryptjs";
 import { User } from "../domain/User";
 import { UserPort } from "../domain/UserPort";
+import { AuthApplication } from "./AuthApplication";
 
 export class UserApplication {
   private port: UserPort;
@@ -7,13 +9,42 @@ export class UserApplication {
   constructor(port: UserPort) {
     this.port = port;
   }
+
+  async login(email: string, password: string): Promise<string>{
+    const existUser = await this.port.getUserByEmail(email);
+      if (!existUser) {
+          throw new Error("Credenciales invalidas");
+    }
+    const passMatch = await bcrypt.compare(password, existUser.password);
+    if(!passMatch){
+      throw new Error("Credenciales invalidas");
+    }
+    const token = AuthApplication.generateToken({
+      id: existUser.id,
+      email: existUser.email,
+    });
+    return token
+  }
+
   async createUser(user: Omit<User, "id">): Promise<number> {
     //Antes de crear un usuario debo validar : el email no existe
     const existUser = await this.port.getUserByEmail(user.email);
     if (existUser) {
       throw new Error("Este email ya está registrado");
     }
+    const hashedPassword = await bcrypt.hash(user.password, 12);
+    user.password = hashedPassword;
     return this.port.createUser(user);
+  }
+
+  async register(user: Omit<User, "id">): Promise<{ userId: number; token: string; role: string }> {
+    const userId = await this.createUser(user);
+    const token = AuthApplication.generateToken({
+      id: userId,
+      email: user.email,
+      role: user.role,
+    });
+    return { userId, token, role: user.role };
   }
 
   async getUserById(id: number): Promise<User | null> {

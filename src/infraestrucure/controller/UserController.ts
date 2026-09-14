@@ -1,22 +1,40 @@
-import { Request, Response } from "express";
+import type { Request, Response } from "express";
 import { loadUserData } from "../util/user_validation";
-import type { promises } from "dns";
 import { loadUpdateUserData } from "../util/user-update-validation";
 import { loadEmail } from "../util/email-validation";
+import { UserApplication } from "../../application/UserApplication";
+import { User } from "../../domain/User"
 
-export class userController {
+export class UserController {
+
     private app : UserApplication;
 
     constructor(application: UserApplication){
         this.app = application;
     }
 
+    async login(req: Request, res: Response): Promise<string | Response>{
+        try {
+            const {email, password} = req.body;
+            if(!email || !password)
+            {
+                return res.status(400).json({
+                    error: "Email y contraseña requeridos"
+                });
+            }
+            const token = await this.app.login(email, password);
+            return res.status(200).json({message: "Login exitoso", token});
+        } catch (error) {
+            return res.status(401).json({error: "Credenciales invalidas" });
+        }
+    }
+
     async createUser(req: Request, res: Response): Promise<Response>{
         try {
             //Validar los datos de entrada
-            const {name, email, password, status} = loadUserData(req.body);
+            const {name, email, password, status, role} = loadUserData(req.body);
 
-            const user: Omit<User, "id"> = {name, email, password, status};
+            const user: Omit<User, "id"> = {name, email, password, status, role};
             const userId = await this.app.createUser(user);
 
             return res
@@ -35,6 +53,26 @@ export class userController {
         }
     }
 
+    async register(req: Request, res: Response): Promise<Response> {
+        try {
+            const { name, email, password, status, role } = loadUserData(req.body);
+
+            const user: Omit<User, "id"> = { name, email, password, status, role };
+            const { userId, token, role: assignedRole } = await this.app.register(user);
+
+            return res
+                .status(201)
+                .json({ message: "Registro exitoso", userId, token, role: assignedRole });
+        } catch (error) {
+            if (error instanceof Error) {
+                return res
+                    .status(400)
+                    .json({ error: error.message });
+            }
+            return res.status(500).json({ error: "Error interno del servidor" });
+        }
+    }
+
     async UpdateUser(req: Request, res: Response): Promise<Response>{
         try {
             const id = Number(req.params.id);
@@ -43,7 +81,7 @@ export class userController {
             }
 
             const dataLoad = loadUpdateUserData(req.body);
-            const updated = await this.app.UpdateUser(id, dataLoad);
+            const updated = await this.app.updateUser(id, dataLoad);
 
             if (!updated) {
                 return res.status(404).json({error: "Usuario no encontrado sin cambios"});

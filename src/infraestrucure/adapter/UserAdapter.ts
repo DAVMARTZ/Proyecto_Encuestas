@@ -1,7 +1,9 @@
 import type { UserPort } from "../../domain/UserPort";
 import type { User as UserDomain } from "../../domain/User";
+import { UserRole } from "../../domain/User";
 import { User as UserEntity } from "../entities/User";
 import { AppDataSource } from "../config/data-base";
+import type { Repository } from "typeorm";
 
 export class UserAdapter implements UserPort {
   private userRepository: Repository<UserEntity>;
@@ -17,6 +19,7 @@ export class UserAdapter implements UserPort {
       email: user.email_user,
       password: user.password_user,
       status: user.status_user,
+      role: user.role_user,
     };
   }
 
@@ -26,6 +29,7 @@ export class UserAdapter implements UserPort {
     userEntity.email_user = user.email;
     userEntity.password_user = user.password;
     userEntity.status_user = user.status;
+    userEntity.role_user = user.role;
     return userEntity;
   }
 
@@ -105,6 +109,7 @@ export class UserAdapter implements UserPort {
       email: user.email_user,
       password: user.password_user,
       status: user.status_user,
+      role: user.role_user,
     };
   }
 

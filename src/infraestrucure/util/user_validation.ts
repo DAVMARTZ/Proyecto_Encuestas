@@ -1,10 +1,12 @@
 import joi from "joi";
+import { UserRole } from "../../domain/User";
 
 export type ReturnUserData = {
     name: string;
     email: string;
     password: string;
     status: number;
+    role: UserRole;
 }
 
 type ValidationUserData = {
@@ -52,6 +54,14 @@ function validateUserData(data: any): ValidationUserData{
                 'number.base': 'El estado debe ser numérico',
                 'any.only': 'El estado debe ser 0 o 1',
                 'any.required': 'El estado es obligatorio',
+            }),
+        role: joi
+            .string()
+            .valid(...Object.values(UserRole))
+            .required()
+            .messages({
+                'any.only': `El rol debe ser '${UserRole.ADMIN}' o '${UserRole.ESTUDIANTE}' o '${UserRole.CLIENTE}'`,
+                'any.required': 'El rol es obligatorio',
             }),
     }).unknown(false);
     const {error, value} = userSchema.validate(data,{abortEarly:false});
