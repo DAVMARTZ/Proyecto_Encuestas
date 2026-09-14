@@ -1,0 +1,28 @@
+{
+  "name": "code6",
+  "version": "1.0.0",
+  "description": "1. **Empezamos a usar promesas**:\r    Como se debeb hacer conexión a BD o a Event Broker(Apache Kafka, RabbitMQ, ActiveMQ, Nats, AWS EventBridges, etc) y a la hora de incializar todas estas conexiones ´pueden fallar, debemos saber cuál falló? o cuál se conectó?\r    Debo asegurarme que:",
+  "keywords": [],
+  "license": "ISC",
+  "author": "Malory Farfan",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc -p .",
+    "dev": "nodemon --watch src --ext ts,json --signal SIGTERM --exec \"tsx src /index.ts\" ",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "joi": "^18.2.3",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
+  }
+}
