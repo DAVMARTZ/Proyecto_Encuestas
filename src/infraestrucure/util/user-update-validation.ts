@@ -1,8 +1,8 @@
 import joi from "joi";
 
 export type ReturnUpdateUserData = Partial<{
-    name: string;
-    email: string;
+    nombre: string;
+    correo: string;
     password: string;
     status: number;
 }>;
@@ -15,7 +15,7 @@ type validationUpdateUserData = {
 function validateUpdateUserData(data: any): validationUpdateUserData {
     const schema = joi
         .object({
-            name: joi
+            nombre: joi
                 .string()
                 .trim()
                 .min(3)
@@ -25,7 +25,7 @@ function validateUpdateUserData(data: any): validationUpdateUserData {
                     "string.pattern.base": "El nombre solo puede contener letras y espacios",
                 }),
 
-            email: joi
+            correo: joi
                 .string()
                 .trim()
                 .email({ tlds: { allow: false } })
@@ -48,7 +48,7 @@ function validateUpdateUserData(data: any): validationUpdateUserData {
             }),
         })
         .unknown(false) // No permitir campos extra
-        .or("name", "email", "password", "status"); // Requiere al menos 1 campo
+        .or("nombre", "correo", "password", "status"); // Requiere al menos 1 campo
 
         const {error, value} = schema.validate(data, {
             abortEarly: false,
@@ -57,6 +57,7 @@ function validateUpdateUserData(data: any): validationUpdateUserData {
         });
         return {error, value};
 }
+
 export const loadUpdateUserData = (data: any): ReturnUpdateUserData => {
     const result = validateUpdateUserData(data);
     if(result.error) {

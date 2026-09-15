@@ -2,11 +2,11 @@ import joi from "joi";
 import { UserRole } from "../../domain/User";
 
 export type ReturnUserData = {
-    name: string;
-    email: string;
+    nombre: string;
+    correo: string;
     password: string;
     status: number;
-    role: UserRole;
+    rol: UserRole;
 }
 
 type ValidationUserData = {
@@ -16,7 +16,7 @@ type ValidationUserData = {
 
 function validateUserData(data: any): ValidationUserData{
     const userSchema = joi.object({
-        name: joi
+        nombre: joi
             .string()
             .trim()
             .min(3)
@@ -28,7 +28,7 @@ function validateUserData(data: any): ValidationUserData{
                 'string.min': 'El nombre debe tener al menos 3 caracteres',
                 'string.pattern.base': 'El nombre solo puede contener letras y un espacio',
             }),
-        email: joi
+        correo: joi
             .string()
             .email({ tlds: { allow: false } })
             .required()
@@ -55,12 +55,12 @@ function validateUserData(data: any): ValidationUserData{
                 'any.only': 'El estado debe ser 0 o 1',
                 'any.required': 'El estado es obligatorio',
             }),
-        role: joi
+        rol: joi
             .string()
             .valid(...Object.values(UserRole))
             .required()
             .messages({
-                'any.only': `El rol debe ser '${UserRole.ADMIN}' o '${UserRole.ESTUDIANTE}' o '${UserRole.CLIENTE}'`,
+                'any.only': `El rol debe ser '${UserRole.ADMIN}', '${UserRole.ESTUDIANTE}' o '${UserRole.DOCENTE}'`,
                 'any.required': 'El rol es obligatorio',
             }),
     }).unknown(false);

@@ -1,6 +1,7 @@
 import { DataSource } from 'typeorm'
 import dotenv from "dotenv";
 import { User } from "../entities/User";
+import { Encuesta } from "../entities/Encuesta";
 import envs from './environment-vars';
 
 dotenv.config();
@@ -13,7 +14,7 @@ dotenv.config();
         schema: "public",
         synchronize:true,
         logging:true,
-        entities: [User],
+        entities: [User,Encuesta],
     })
 
 //Conectar a la BD

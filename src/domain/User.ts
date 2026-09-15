@@ -1,14 +1,14 @@
 export enum UserRole {
-    ADMIN = 'admin',
-    ESTUDIANTE = 'estudiante',
-    CLIENTE = 'cliente'
+    ADMIN = 'Administrador',
+    ESTUDIANTE = 'Estudiante',
+    DOCENTE = 'Docente'
 }
 
 export interface User {
-    id: number;
-    name: string;
-    email: string;
+    id: string; 
+    nombre: string;
+    correo: string;
     password: string;
-    status: number;
-    role: UserRole;
+    status: number; 
+    rol: UserRole;
 }

@@ -1,15 +1,17 @@
 import joi from "joi";
 
 export type ReturnEmail = {
-    email: string;
+    correo: string;
 };
+
 type ValidationEmail = {
     error: joi.ValidationError | undefined;
     value: ReturnEmail;
 }
+
 function validateEmail(data:any): ValidationEmail {
     const emailSchema = joi.object({
-        email: joi
+        correo: joi
         .string()
         .email({tlds: {allow: false} })
         .required()
