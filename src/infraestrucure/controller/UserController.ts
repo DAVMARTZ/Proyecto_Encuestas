@@ -4,7 +4,7 @@ import type { promises } from "dns";
 import { loadUpdateUserData } from "../util/user-update-validation";
 import { loadEmail } from "../util/email-validation";
 
-export class userController {
+export class UserController {
     private app : UserApplication;
 
     constructor(application: UserApplication){
