@@ -13,41 +13,41 @@ export class UserAdapter implements UserPort {
 
   private toDomain(user: UserEntity): UserDomain {
     return {
-      id: user.id,
-      nombre: user.nombre,
-      correo: user.correo,
-      password: user.password,
-      status: user.status,
-      rol: user.rol as any,
+      id: user.user_id,
+      nombre: user.name,
+      correo: user.email,
+      password: user.password_hash,
+      status: user.status_user,
+      rol: user.role as any,
     };
   }
 
   private toEntity(user: Omit<UserDomain, "id">): UserEntity {
     const userEntity = new UserEntity();
-    userEntity.nombre = user.nombre;
-    userEntity.correo = user.correo;
-    userEntity.password = user.password;
-    userEntity.status = user.status;
-    userEntity.rol = user.rol as any;
+    userEntity.name = user.nombre;
+    userEntity.email = user.correo;
+    userEntity.password_hash = user.password;
+    userEntity.status_user = user.status;
+    userEntity.role = user.rol as any;
     return userEntity;
   }
 
   async createUser(user: Omit<UserDomain, "id">): Promise<string> {
     const newUser = this.toEntity(user);
     const savedUser = await this.userRepository.save(newUser);
-    return savedUser.id;
+    return savedUser.user_id;
   }
 
   async updateUser(id: string, user: Partial<UserDomain>): Promise<boolean> {
-    const existingUser = await this.userRepository.findOne({ where: { id } as any });
+    const existingUser = await this.userRepository.findOne({ where: { user_id: id } });
     if (!existingUser) return false;
 
     Object.assign(existingUser, {
-      nombre: user.nombre ?? existingUser.nombre,
-      correo: user.correo ?? existingUser.correo,
-      password: user.password ?? existingUser.password,
-      status: user.status ?? existingUser.status,
-      rol: user.rol ?? existingUser.rol,
+      name: user.nombre ?? existingUser.name,
+      email: user.correo ?? existingUser.email,
+      password_hash: user.password ?? existingUser.password_hash,
+      status_user: user.status ?? existingUser.status_user,
+      role: (user.rol as any) ?? existingUser.role,
     });
 
     await this.userRepository.save(existingUser);
@@ -55,27 +55,27 @@ export class UserAdapter implements UserPort {
   }
 
   async deleteUser(id: string): Promise<boolean> {
-    const existingUser = await this.userRepository.findOne({ where: { id } as any });
+    const existingUser = await this.userRepository.findOne({ where: { user_id: id } });
     if (!existingUser) return false;
     
     // BORRADO LÓGICO: Solo actualiza el estatus a 0
-    existingUser.status = 0;
+    existingUser.status_user = 0;
     await this.userRepository.save(existingUser);
     return true;
   }
 
   async getUserById(id: string): Promise<UserDomain | null> {
-    const user = await this.userRepository.findOne({ where: { id } as any });
+    const user = await this.userRepository.findOne({ where: { user_id: id } });
     return user ? this.toDomain(user) : null;
   }
 
   async getUserByEmail(correo: string): Promise<UserDomain | null> {
-    const user = await this.userRepository.findOne({ where: { correo } as any });
+    const user = await this.userRepository.findOne({ where: { email: correo } });
     return user ? this.toDomain(user) : null;
   }
 
   async getAllUsers(): Promise<UserDomain[]> {
-    const users = await this.userRepository.find({ where: { status: 1 } });
+    const users = await this.userRepository.find({ where: { status_user: 1 } });
     return users.map((user) => this.toDomain(user));
   }
 }

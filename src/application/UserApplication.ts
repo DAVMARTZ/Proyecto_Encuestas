@@ -22,6 +22,8 @@ export class UserApplication {
     const token = AuthApplication.generateToken({
       id: existUser.id,
       correo: existUser.correo,
+      rol: existUser.rol,
+      role: existUser.rol,
     });
     return token;
   }
@@ -42,6 +44,7 @@ export class UserApplication {
       id: userId,
       correo: user.correo,
       rol: user.rol,
+      role: user.rol,
     });
     return { userId, token, rol: user.rol };
   }

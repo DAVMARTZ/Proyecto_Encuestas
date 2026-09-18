@@ -1,34 +1,30 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from "typeorm";
 
 export enum RolUsuario {
-    Administrador = 'Administrador',
-    Docente = 'Docente',
-    Cliente = 'Cliente'
+    ADMINISTRADOR = 'administrador',
+    USUARIO = 'usuario'
 }
 
-@Entity('usuarios') 
+@Entity('users')
 export class User {
     @PrimaryGeneratedColumn('uuid')
-    id!: string;
+    user_id!: string;
 
-    @Column({ type: "varchar", length: 100 })
-    nombre!: string;
-    
-    @Column({ type: "varchar", length: 150, unique: true })
-    correo!: string; // Reemplaza a email_user
-    
     @Column({ type: "varchar", length: 255 })
-    password!: string;
-    
-    @Column({ type: "text", nullable: true })
-    foto_perfil!: string; 
+    name!: string;
 
-    @Column({ type: "enum", enum: RolUsuario, default: RolUsuario.Docente })
-    rol!: RolUsuario;
+    @Column({ type: "varchar", length: 255, unique: true })
+    email!: string;
+
+    @Column({ type: "varchar", length: 255 })
+    password_hash!: string;
 
     @CreateDateColumn({ type: 'timestamp with time zone' })
-    fecha_creacion!: Date;
+    created_at!: Date;
 
-    @UpdateDateColumn({ type: 'timestamp with time zone' })
-    fecha_actualizacion!: Date;
+    @Column({ type: "integer", default: 1 })
+    status_user!: number;
+
+    @Column({ type: "varchar", length: 50, default: RolUsuario.USUARIO })
+    role!: RolUsuario;
 }
