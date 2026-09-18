@@ -48,7 +48,8 @@ Backend_Encuestas/
 │   │   ├── User.ts                     ← Interface/modelo puro del dominio
 │   │   └── UserPort.ts                 ← Puerto (contrato de comunicación)
 │   ├── application/                    ← 🟡 Casos de uso y lógica de negocio
-│   │   └── UserApplication.ts          ← Orquesta operaciones usando el puerto
+│   │   ├── UserApplication.ts          ← Orquesta operaciones de usuarios y registro
+│   │   └── AuthApplication.ts          ← Generación y verificación de tokens JWT
 │   └── infraestrucure/                 ← 🟢 Todo lo externo (Express, DB, etc.)
 │       ├── adapter/
 │       │   └── UserAdapter.ts          ← Implementa UserPort usando TypeORM
@@ -60,15 +61,17 @@ Backend_Encuestas/
 │       ├── controller/
 │       │   └── UserController.ts       ← Maneja peticiones HTTP (req/res)
 │       ├── entities/
-│       │   └── User.ts                 ← Entidad TypeORM (mapeo a tabla en BD)
+│       │   └── User.ts                 ← Entidad TypeORM (tabla users: 7 columnas)
 │       ├── routes/
-│       │   └── UserRoutes.ts           ← Define rutas Express + inyecta dependencias
+│       │   └── UserRoutes.ts           ← Rutas Express + inyección de dependencias + middlewares
 │       ├── util/
-│       │   ├── user_validation.ts      ← Validación de body al crear usuario (Joi)
+│       │   ├── user_validation.ts      ← Validación de body al crear/registrar usuario (Joi)
 │       │   ├── user-update-validation.ts ← Validación parcial al actualizar
 │       │   └── email-validation.ts     ← Validación del email en params
 │       └── web/
-│           └── app.ts                  ← Clase App: middlewares + rutas de Express
+│           ├── app.ts                  ← Configuración de Express, CORS y prefijo /api
+│           ├── authMiddleware.ts       ← Middleware de autenticación con JWT (Bearer token)
+│           └── roleMiddleware.ts       ← Middleware de autorización por roles (RBAC)
 ├── .env                                ← Variables de entorno (NO subir a Git)
 ├── .env.example                        ← Plantilla de variables de entorno (SÍ subir)
 ├── .gitignore
@@ -101,7 +104,8 @@ Contiene la **lógica de negocio orquestada**. Sabe qué operaciones existen, en
 
 | Archivo | Qué hace | Qué debe ir aquí |
 |---|---|---|
-| `UserApplication.ts` | Clase que recibe un `UserPort` por constructor (inyección de dependencias) y ejecuta los casos de uso: validar email duplicado antes de crear, verificar existencia antes de actualizar, etc. | Clases de casos de uso. Lógica de negocio como validaciones de reglas, flujos multi-paso |
+| `UserApplication.ts` | Clase que recibe un `UserPort` por constructor (inyección de dependencias) y ejecuta los casos de uso: `createUser`, `register` (con token JWT), `login`, `updateUser`, etc. | Clases de casos de uso. Lógica de negocio como validaciones de reglas, hashing con bcrypt, flujos multi-paso |
+| `AuthApplication.ts` | Provee métodos estáticos `generateToken` y `verifyToken` usando **jsonwebtoken** para firmar y validar tokens JWT con id, correo y rol del usuario | Lógica de autenticación, generación y validación de tokens de sesión |
 
 > **Ejemplo real en el proyecto**: Antes de crear un usuario, `UserApplication` llama a `getUserByEmail` para verificar que el email no esté registrado. Esta es una **regla de negocio**, no una validación de formato HTTP.
 
@@ -117,7 +121,7 @@ Es la capa más externa. Aquí vive todo lo que depende de tecnologías concreta
 |---|---|---|
 | `UserAdapter.ts` | **Implementa** la interface `UserPort` usando TypeORM. Convierte entre la entidad ORM (`UserEntity`) y el modelo de dominio (`User`). Es el puente entre la BD y el dominio | Clases que implementan los puertos del dominio. Un adapter por fuente de datos o servicio externo |
 
-> El adapter tiene dos métodos privados clave: `toDomain()` (convierte entidad ORM → dominio) y `toEntity()` (convierte dominio → entidad ORM). Esto garantiza que el dominio nunca vea columnas de base de datos como `id_user` o `email_user`.
+> El adapter tiene dos métodos privados clave: `toDomain()` (convierte entidad ORM → dominio) y `toEntity()` (convierte dominio → entidad ORM). Esto garantiza que el dominio nunca vea columnas de base de datos como `user_id` o `password_hash`.
 
 #### 📁 `bootstrap/`
 
@@ -144,15 +148,15 @@ Es la capa más externa. Aquí vive todo lo que depende de tecnologías concreta
 
 | Archivo | Qué hace | Qué debe ir aquí |
 |---|---|---|
-| `User.ts` | Clase decorada con `@Entity`, `@Column`, `@PrimaryGeneratedColumn` de TypeORM. Mapea directamente a la tabla `users` en PostgreSQL con columnas `id_user`, `name_user`, `email_user`, `password_user`, `status_user` | Entidades ORM con decoradores. Una entidad por tabla de base de datos |
+| `User.ts` | Entidad TypeORM que mapea fielmente a la tabla `users` en PostgreSQL con sus 7 columnas: `user_id`, `name`, `email`, `password_hash`, `created_at`, `status_user`, `role`. Define el enum `RolUsuario` (`administrador`, `usuario`) | Entidades ORM con decoradores. Una entidad por tabla de base de datos |
 
-> Esta entidad es **diferente** del `User` del dominio. Usa nombres de columna de BD (`name_user`) mientras que el dominio usa nombres limpios (`name`). El `UserAdapter` hace la traducción.
+> Esta entidad es **diferente** del `User` del dominio. Usa los nombres reales de columna de BD (`user_id`, `password_hash`, `status_user`) mientras que el dominio usa nombres limpios (`id`, `password`, `status`). El `UserAdapter` hace la traducción transparente.
 
 #### 📁 `routes/`
 
 | Archivo | Qué hace | Qué debe ir aquí |
 |---|---|---|
-| `UserRoutes.ts` | Define las rutas Express (`POST /users`, `GET /users`, etc.) y hace la **inyección de dependencias manual**: instancia `UserAdapter` → `UserApplication` → `UserController` | Definición de rutas + composición (wiring) de capas. Es el único lugar donde se ensamblan las piezas |
+| `UserRoutes.ts` | Define las rutas Express (`/login`, `/register`, `/users`, etc.) e inyecta middlewares de autenticación (`authenticateToken`) y autorización de roles (`authorizeRole`) | Definición de rutas + composición (wiring) de capas + middlewares de seguridad |
 
 > Este es el punto de composición: `new UserAdapter()` → `new UserApplication(adapter)` → `new UserController(app)`. Así se conectan las capas sin acoplarse entre ellas.
 
@@ -160,7 +164,7 @@ Es la capa más externa. Aquí vive todo lo que depende de tecnologías concreta
 
 | Archivo | Qué hace | Qué debe ir aquí |
 |---|---|---|
-| `user_validation.ts` | Valida y parsea el body de la petición para crear usuario usando **Joi** | Validaciones de entrada HTTP (formato, campos requeridos, tipos) |
+| `user_validation.ts` | Valida y parsea el body de la petición para crear/registrar usuario usando **Joi** (incluyendo validación de `role`) | Validaciones de entrada HTTP (formato, campos requeridos, tipos) |
 | `user-update-validation.ts` | Valida el body de actualización parcial (`Partial<User>`) | Validaciones para operaciones parciales |
 | `email-validation.ts` | Valida que el email en los params de la URL tenga formato correcto | Validaciones de parámetros de ruta o query |
 
@@ -168,7 +172,9 @@ Es la capa más externa. Aquí vive todo lo que depende de tecnologías concreta
 
 | Archivo | Qué hace | Qué debe ir aquí |
 |---|---|---|
-| `app.ts` | Clase `App` que instancia Express, registra middlewares (`express.json()`) y conecta las rutas bajo el prefijo `/api` | Configuración central de Express: middlewares globales, prefijos, CORS, etc. |
+| `app.ts` | Clase `App` que instancia Express, registra middlewares globales (`cors`, `express.json`) y conecta las rutas bajo `/api` | Configuración central de Express: middlewares globales, prefijos, CORS |
+| `authMiddleware.ts` | Extrae el header `Authorization: Bearer <token>`, verifica el token JWT y adjunta el payload a `req.user` | Middleware de autenticación global para proteger rutas privadas |
+| `roleMiddleware.ts` | Middleware de autorización basado en roles (`authorizeRole(...roles)`). Valida que el usuario tenga el rol requerido | Middleware de control de acceso basado en roles (RBAC) |
 
 ---
 
@@ -287,37 +293,47 @@ npm run start
 
 Base URL: `http://localhost:3000/api`
 
-| Método | Ruta | Descripción | Body |
-|---|---|---|---|
-| `POST` | `/users` | Crear un nuevo usuario | `{ name, email, password, status }` |
-| `GET` | `/users` | Obtener todos los usuarios activos | — |
-| `GET` | `/users/email/:email` | Buscar usuario por email | — |
-| `GET` | `/users/:id` | Obtener usuario por ID | — |
-| `PUT` | `/users/:id` | Actualizar usuario parcialmente | `{ name?, email?, password?, status? }` |
-| `DELETE` | `/users/:id` | Baja lógica del usuario (status → 0) | — |
+### Módulo de Autenticación y Usuarios
 
-### Ejemplo de request — Crear usuario
+| Método | Ruta | Acceso | Descripción | Body requerido |
+|---|---|---|---|---|
+| `POST` | `/login` | 🌐 Público | Iniciar sesión y obtener token JWT | `{ correo, password }` |
+| `POST` | `/register` | 🌐 Público | Auto-registro de usuario con token de sesión | `{ nombre, correo, password, status, rol }` |
+| `GET` | `/users` | 🔒 `administrador` | Listar todos los usuarios activos | — |
+| `POST` | `/users` | 🔒 `administrador` | Crear un nuevo usuario desde panel admin | `{ nombre, correo, password, status, rol }` |
+| `GET` | `/users/email/:email` | 🔒 Autenticado | Buscar usuario por correo electrónico | — |
+| `GET` | `/users/:id` | 🔒 Autenticado | Obtener información de un usuario por ID | — |
+| `PUT` | `/users/:id` | 🔒 `administrador` | Actualizar datos del usuario parcialmente | `{ nombre?, correo?, password?, status?, rol? }` |
+| `DELETE` | `/users/:id` | 🔒 `administrador` | Baja lógica del usuario (`status_user` → 0) | — |
+
+> 🔒 **Autenticación**: Los endpoints protegidos requieren el header `Authorization: Bearer <token>`.  
+> 🛡️ **Control de roles**: Las rutas administrativas verifican mediante `authorizeRole('administrador', 'admin')` que el usuario posea dicho rol en el payload del token.
+
+### Ejemplo de request — Registro de usuario (`POST /api/register`)
 
 ```json
-POST /api/users
+POST /api/register
 Content-Type: application/json
 
 {
-  "name": "Juan Pérez",
-  "email": "juan@example.com",
-  "password": "miPassword123",
-  "status": 1
+  "nombre": "Carlos Gómez",
+  "correo": "carlos@example.com",
+  "password": "Password123",
+  "status": 1,
+  "rol": "usuario"
 }
 ```
 
-### Ejemplo de response exitoso
+### Ejemplo de response exitoso (`201 Created`)
 
 ```json
 HTTP 201 Created
 
 {
-  "message": "Usuario creado con exito",
-  "userId": 1
+  "message": "Registro exitoso",
+  "userId": "c56a4180-65aa-42ec-a945-5fd21dec0538",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "rol": "usuario"
 }
 ```
 
@@ -330,9 +346,13 @@ HTTP 201 Created
 | Paquete | Versión | Para qué sirve |
 |---|---|---|
 | `express` | ^5.2.1 | Framework HTTP para crear la API REST |
+| `cors` | ^2.8.5 | Middleware para habilitar Cross-Origin Resource Sharing |
 | `dotenv` | ^17.4.2 | Carga variables de entorno desde `.env` |
-| `joi` | ^18.2.3 | Validación de esquemas (body, env vars) |
-| `pg` | ^8.23.0 | Driver de PostgreSQL para Node.js (requerido por TypeORM) |
+| `joi` | ^18.2.3 | Validación de esquemas (body, params, env vars) |
+| `typeorm` | ^0.3.20 | ORM para interactuar con PostgreSQL |
+| `pg` | ^8.23.0 | Driver de PostgreSQL para Node.js |
+| `bcryptjs` | ^2.4.3 | Hashing y verificación segura de contraseñas |
+| `jsonwebtoken` | ^9.0.2 | Generación y verificación de tokens de autenticación JWT |
 
 ### Desarrollo
 
@@ -343,6 +363,9 @@ HTTP 201 Created
 | `ts-node` | ^10.9.2 | Alternativa a tsx para ejecutar TS |
 | `nodemon` | ^3.1.14 | Reinicia automáticamente el servidor al detectar cambios |
 | `@types/express` | ^5.0.6 | Tipos de TypeScript para Express |
+| `@types/cors` | ^2.8.17 | Tipos de TypeScript para CORS |
+| `@types/bcryptjs` | ^2.4.6 | Tipos de TypeScript para bcryptjs |
+| `@types/jsonwebtoken` | ^9.0.7 | Tipos de TypeScript para jsonwebtoken |
 
 ---
 
@@ -358,18 +381,19 @@ npm run start    # Ejecuta la versión compilada desde /dist
 
 ## 🗄️ Modelo de Base de Datos
 
-### Schema: `users`
-### Tabla: `users`
+### Tabla: `users` (7 columnas)
 
-| Columna | Tipo | Restricciones | Descripción |
-|---|---|---|---|
-| `id_user` | `INTEGER` | PK, AUTO_INCREMENT | Identificador único |
-| `name_user` | `VARCHAR(255)` | NOT NULL | Nombre completo |
-| `email_user` | `VARCHAR(255)` | NOT NULL, UNIQUE | Email (único) |
-| `password_user` | `VARCHAR(255)` | NOT NULL | Contraseña |
-| `status_user` | `INTEGER` | DEFAULT 1 | 1 = activo, 0 = baja lógica |
+| Columna | Tipo SQL | Tipo ORM / TS | Restricciones | Descripción |
+|---|---|---|---|---|
+| `user_id` | `UUID` | string | PK, Generated UUID | Identificador único del usuario |
+| `name` | `VARCHAR(255)` | string | NOT NULL | Nombre completo |
+| `email` | `VARCHAR(255)` | string | NOT NULL, UNIQUE | Correo electrónico único |
+| `password_hash` | `VARCHAR(255)` | string | NOT NULL | Contraseña con hash bcrypt |
+| `created_at` | `TIMESTAMP WITH TIME ZONE` | Date | DEFAULT CURRENT_TIMESTAMP | Fecha y hora de creación |
+| `status_user` | `INTEGER` | number | DEFAULT 1 | Estado del usuario: `1` = activo, `0` = baja lógica |
+| `role` | `VARCHAR(50)` | RolUsuario | DEFAULT 'usuario' | Rol del usuario (`administrador`, `usuario`) |
 
-> El proyecto implementa **baja lógica**: los usuarios nunca se eliminan físicamente, solo se cambia `status_user` a `0`.
+> 💡 **Baja lógica**: Los usuarios nunca se eliminan físicamente de la base de datos; la operación `deleteUser` actualiza `status_user = 0`.
 
 ---
 
@@ -383,8 +407,27 @@ npm run start    # Ejecuta la versión compilada desde /dist
 | `DB_USER` | string | ✅ | — | Usuario de la BD |
 | `DB_PASSWORD` | string | ❌ | `""` | Contraseña de la BD |
 | `DB_NAME` | string | ✅ | — | Nombre de la base de datos |
+| `JWT_SECRET` | string | ✅ | — | Clave secreta para firmar tokens JWT |
 
 La validación de estas variables se realiza con **Joi** al iniciar la aplicación en [`environment-vars.ts`](src/infraestrucure/config/environment-vars.ts). Si falta alguna variable requerida, la app no arranca y muestra el error específico.
+
+---
+
+## 📜 Historial de Cambios Recientes
+
+### 🔐 Autenticación, Roles y Normalización de BD
+1. **Normalización de Entidad `User` con la Base de Datos:**
+   - La entidad `User` en `src/infraestrucure/entities/User.ts` se adaptó fielmente a las 7 columnas reales de la tabla `users` (`user_id`, `name`, `email`, `password_hash`, `created_at`, `status_user`, `role`).
+   - Se configuró el enum de TypeScript `RolUsuario` con dos roles permitidos: `administrador` y `usuario`, manteniendo la columna en base de datos como `VARCHAR(50)` para evitar errores de sincronización de tipos nativos.
+2. **Actualización de Mapeos en `UserAdapter`:**
+   - Se ajustaron los métodos `toDomain()` y `toEntity()` y todas las consultas (`where: { user_id }`, `where: { email }`, `where: { status_user: 1 }`) para mapear transparentemente entre la entidad y el modelo de dominio sin alterar la lógica de negocio.
+3. **Flujo de Auto-Registro (`register`):**
+   - Se implementó `register()` en `UserApplication` y `UserController`, generando y devolviendo un token JWT con la sesión lista y el rol asignado (`userId`, `token`, `rol`).
+4. **Middleware de Control de Acceso por Roles (RBAC):**
+   - Se creó `src/infraestrucure/web/roleMiddleware.ts` con la función `authorizeRole(...roles)`, validando que el rol presente en el token JWT coincida con los permisos requeridos.
+5. **Completitud y Protección de `UserRoutes`:**
+   - Se registraron todas las rutas del CRUD que faltaban (`GET /users/:id`, `PUT /users/:id`, `DELETE /users/:id`).
+   - Se protegió el acceso a las operaciones sensibles (`GET /users`, `POST /users`, `PUT /users/:id`, `DELETE /users/:id`) únicamente para usuarios con rol `administrador`.
 
 ---
 
@@ -406,3 +449,4 @@ Si quisieras agregar, por ejemplo, el módulo de **Encuestas**, deberías seguir
 
 **Malory Farfan**  
 Proyecto Backend — Arquitectura Hexagonal con Node.js + TypeScript
+
