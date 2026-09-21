@@ -4,13 +4,17 @@ import { SurveyApplication } from '../../application/SurveyApplication';
 export class SurveyController {
   constructor(private readonly surveyApp: SurveyApplication) {}
 
+  /**
+   * Crea una nueva encuesta asociada al usuario autenticado.
+   */
   create = async (req: Request, res: Response): Promise<void> => {
     try {
-      // El userId se obtiene del token JWT decodificado en el middleware de autenticación previa
       const userId = req.body.user?.id || req.body.userId;
       
       const surveyId = await this.surveyApp.createSurvey({
-        ...req.body,
+        title: req.body.title,
+        description: req.body.description,
+        closeDate: req.body.closeDate,
         userId,
       });
 
@@ -23,6 +27,9 @@ export class SurveyController {
     }
   };
 
+  /**
+   * Obtiene todas las encuestas registradas.
+   */
   getAll = async (_req: Request, res: Response): Promise<void> => {
     try {
       const surveys = await this.surveyApp.getAllSurveys();
@@ -32,6 +39,9 @@ export class SurveyController {
     }
   };
 
+  /**
+   * Obtiene el detalle de una encuesta por su UUID.
+   */
   getById = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
@@ -42,6 +52,9 @@ export class SurveyController {
     }
   };
 
+  /**
+   * Actualiza la información general de una encuesta en Borrador.
+   */
   update = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
@@ -52,6 +65,9 @@ export class SurveyController {
     }
   };
 
+  /**
+   * Publica la encuesta para que pueda recibir respuestas.
+   */
   publish = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
@@ -62,6 +78,9 @@ export class SurveyController {
     }
   };
 
+  /**
+   * Desactiva la encuesta (Cierre lógico).
+   */
   deactivate = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;

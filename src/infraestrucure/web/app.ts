@@ -1,6 +1,7 @@
 import express, {type Request, type Response} from "express";
 import userRoutes from "../routes/UserRoutes";
 import { SurveyRoutes } from '../routes/SurveyRoutes';
+import { SurveyResponseRoutes } from '../routes/surveyResponseRoutes';
 
 class App{
     private app: express.Application = express();
@@ -18,6 +19,7 @@ class App{
     private routes():void{
         this.app.use("/api", userRoutes);
         this.app.use('/api', SurveyRoutes);
+        this.app.use('/api', SurveyResponseRoutes);
     }
 
     getApp(){

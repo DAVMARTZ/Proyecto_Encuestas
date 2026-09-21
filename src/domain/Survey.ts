@@ -1,21 +1,17 @@
-export type SurveyStatus = "Borrador" | "Publicada" | "Inactiva" ;
+/**
+ * Define los estados permitidos según la regla de negocio para status_survey.
+ */
+export type SurveyStatus = "Borrador" | "Publicada" | "Inactiva";
 
-export interface Survey{
-    id?: string;
-    userId?: string;
-    itemId: string;
-    surveyTypeId: string;
+/**
+ * Entidad principal de Encuesta con la tabla 'surveys'.
+ */
+export interface Survey {
+    surveyId?: string;
     title: string;
     description?: string;
-    status: SurveyStatus;
+    statusSurvey: SurveyStatus;
     createdAt?: Date;
-    updatedAt?: Date;
-}
-
-export interface SurveyPort {
-    save(survey: Survey): Promise<string>;
-    findAll(): Promise<Survey[]>;
-    findById(id:String): Promise<Survey | null>;
-    update(id: string, survey: Partial<Survey>): Promise<boolean>;
-    updateStatus(id: string, status:SurveyStatus): Promise<boolean>;
+    closeDate?: Date;
+    userId: string;
 }

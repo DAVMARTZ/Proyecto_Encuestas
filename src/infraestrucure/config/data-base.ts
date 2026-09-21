@@ -3,6 +3,10 @@ import dotenv from "dotenv";
 import { User } from "../entities/User";
 import { SurveyEntity } from "../entities/Survey";
 import envs from './environment-vars';
+import { QuestionEntity } from '../entities/QuestionEntity';
+import { ResponseOptionEntity } from '../entities/ResponseOptionEntity';
+import { SurveyResponseEntity } from '../entities/SurveyResponseEntity';
+import { ResponseDetailEntity } from '../entities/ResponseDetailEntity';
 
 dotenv.config();
 	export const AppDataSource = new DataSource({
@@ -14,7 +18,7 @@ dotenv.config();
         //schema: "users",
         synchronize:true,
         logging:true,
-        entities: [User, SurveyEntity],
+        entities: [User, SurveyEntity,QuestionEntity,ResponseOptionEntity,SurveyResponseEntity, ResponseDetailEntity,],
     })
 
 //Conectar a la BD

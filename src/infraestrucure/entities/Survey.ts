@@ -1,31 +1,29 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, OneToMany } from 'typeorm';
+import { QuestionEntity } from './QuestionEntity';
 
-@Entity('encuestas')
+@Entity('surveys') 
 export class SurveyEntity {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn('uuid', { name: 'survey_id' }) 
+  surveyId!: string;
 
-  @Column({ name: 'usuario_creador_id', type: 'uuid' })
-  userId: string;
+  @Column({ name: 'user_id', type: 'uuid' }) 
+  userId!: string;
 
-  @Column({ name: 'item_id', type: 'uuid' })
-  itemId: string;
+  @Column({ name: 'title', type: 'varchar', length: 200 }) 
+  title!: string;
 
-  @Column({ name: 'tipo_encuesta_id', type: 'uuid' })
-  surveyTypeId: string;
+  @Column({ name: 'description', type: 'text', nullable: true })
+  description?: string; 
 
-  @Column({ name: 'titulo', type: 'varchar', length: 200 })
-  title: string;
+  @Column({ name: 'status_survey', type: 'varchar', length: 30, default: 'Borrador' })
+  statusSurvey!: string;
 
-  @Column({ type: 'text', nullable: true })
-  description: string;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) 
+  createdAt!: Date;
 
-  @Column({ name: 'estado', type: 'varchar', default: 'Borrador' })
-  status: string;
+  @Column({ name: 'close_date', type: 'timestamptz', nullable: true })
+  closeDate?: Date; 
 
-  @CreateDateColumn({ name: 'fecha_creacion' })
-  createdAt: Date;
-
-  @UpdateDateColumn({ name: 'fecha_actualizacion' })
-  updatedAt: Date;
+  @OneToMany(() => QuestionEntity, (question: QuestionEntity) => question.survey)
+  questions!: QuestionEntity[];
 }

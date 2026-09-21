@@ -1,39 +1,42 @@
-import { SurveyPort, Survey, SurveyStatus } from '../domain/Survey';
+import { SurveyPort } from '../domain/SurveyPort';
+import { Survey } from '../domain/Survey';
 
 export class SurveyApplication {
   constructor(private readonly surveyPort: SurveyPort) {}
 
   /**
-   * 1. Crear encuesta en estado Borrador
+   * Crea una nueva encuesta forzando el estado inicial a 'Borrador'.
+   * @param data Datos básicos de la encuesta excluyendo campos autogenerados.
+   * @returns El ID (UUID) de la encuesta recién creada.
    */
-  async createSurvey(data: Omit<Survey, 'id' | 'status'>): Promise<string> {
-    if (!data.surveyTypeId) {
-      throw new Error('El tipo de encuesta es obligatorio.');
-    }
-    if (!data.itemId) {
-      throw new Error('El ítem a evaluar es obligatorio.');
-    }
+  async createSurvey(data: Omit<Survey, 'surveyId' | 'statusSurvey' | 'createdAt'>): Promise<string> {
     if (!data.title || data.title.trim() === '') {
       throw new Error('El título de la encuesta es obligatorio.');
+    }
+    if (!data.userId) {
+      throw new Error('El ID del usuario creador es obligatorio.');
     }
 
     const newSurvey: Survey = {
       ...data,
-      status: 'Borrador', // Forzado por regla de negocio
+      statusSurvey: 'Borrador',
     };
 
     return await this.surveyPort.save(newSurvey);
   }
 
   /**
-   * 2. Consultar todas las encuestas
+   * Recupera todo el listado de encuestas disponibles.
+   * @returns 
    */
   async getAllSurveys(): Promise<Survey[]> {
     return await this.surveyPort.findAll();
   }
 
   /**
-   * 3. Consultar una encuesta por su ID
+   * Busca una encuesta específica por su identificador único.
+   * @param id UUID de la encuesta.
+   * @returns La encuesta encontrada.
    */
   async getSurveyById(id: string): Promise<Survey> {
     const survey = await this.surveyPort.findById(id);
@@ -44,48 +47,54 @@ export class SurveyApplication {
   }
 
   /**
-   * 4. Editar encuesta (Validando estrictamente que esté en estado Borrador)
+   * Actualiza la información de una encuesta solo si está en estado 'Borrador'.
+   * @param id UUID de la encuesta.
+   * @param data Objeto con los campos a actualizar.
+   * @returns 
    */
   async updateSurvey(id: string, data: Partial<Survey>): Promise<boolean> {
     const survey = await this.surveyPort.findById(id);
+    
     if (!survey) {
       throw new Error('La encuesta que intenta editar no existe.');
     }
-
-    if (survey.status !== 'Borrador') {
-      throw new Error('No se puede modificar una encuesta que ya ha sido publicada o cerrada.');
+    if (survey.statusSurvey !== 'Borrador') {
+      throw new Error('Solo se pueden modificar encuestas en estado Borrador.');
     }
 
     return await this.surveyPort.update(id, data);
   }
 
   /**
-   * 5. Publicar encuesta (Pasa de Borrador a Publicada)
+   * Cambia el estado de una encuesta a 'Publicada'.
+   * @param id UUID de la encuesta.
+   * @returns 
    */
   async publishSurvey(id: string): Promise<boolean> {
     const survey = await this.surveyPort.findById(id);
+    
     if (!survey) {
       throw new Error('La encuesta no existe.');
     }
-
-    if (survey.status === 'Publicada') {
+    if (survey.statusSurvey === 'Publicada') {
       throw new Error('La encuesta ya se encuentra publicada.');
     }
 
-    // Aquí se acoplará la validación de preguntas del Dev 4 en el futuro.
     return await this.surveyPort.updateStatus(id, 'Publicada');
   }
 
   /**
-   * 6. Desactivar encuesta (Pasa a Inactiva / Cerrada)
+   * Cambia el estado de una encuesta a 'Inactiva'.
+   * @param id UUID de la encuesta.
+   * @returns 
    */
   async deactivateSurvey(id: string): Promise<boolean> {
     const survey = await this.surveyPort.findById(id);
+    
     if (!survey) {
       throw new Error('La encuesta no existe.');
     }
-
-    if (survey.status === 'Inactiva') {
+    if (survey.statusSurvey === 'Inactiva') {
       throw new Error('La encuesta ya está inactiva.');
     }
 
