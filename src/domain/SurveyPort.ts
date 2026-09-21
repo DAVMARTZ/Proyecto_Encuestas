@@ -1,18 +1,13 @@
-import { Survey, EstadoEncuesta } from './Survey';
+import { Survey, SurveyStatus } from './Survey';
 
+/**
+ * Contrato que debe implementar cualquier adaptador de la db
+ * Aísla la lógica de negocio de la infraestructura typeorm.
+ */
 export interface SurveyPort {
-    // Método para guardar una nueva encuesta 
-    create(survey: Survey): Promise<Survey>;
-    
-    // Método para obtener todas las encuestas (con futuros filtros)
-    findAll(filtros?: any): Promise<Survey[]>;
-    
-    // Método para obtener una encuesta específica 
+    save(survey: Survey): Promise<string>;
+    findAll(): Promise<Survey[]>;
     findById(id: string): Promise<Survey | null>;
-    
-    // Método para actualizar datos de una encuesta
-    update(id: string, data: Partial<Survey>): Promise<Survey>;
-    
-    // Método para cambiar únicamente el estado de la encuesta
-    changeStatus(id: string, status: EstadoEncuesta): Promise<Survey>;
+    update(id: string, survey: Partial<Survey>): Promise<boolean>;
+    updateStatus(id: string, status: SurveyStatus): Promise<boolean>;
 }

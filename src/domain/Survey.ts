@@ -1,18 +1,17 @@
-export enum EstadoEncuesta {
-    Borrador = 'Borrador',
-    Publicada = 'Publicada',
-    Inactiva = 'Inactiva'
-}
+/**
+ * Define los estados permitidos según la regla de negocio para status_survey.
+ */
+export type SurveyStatus = "Borrador" | "Publicada" | "Inactiva";
 
-// Interfaz pura de la Encuesta
+/**
+ * Entidad principal de Encuesta con la tabla 'surveys'.
+ */
 export interface Survey {
-    id?: string; 
-    usuario_creador_id: string;
-    item_id: string;
-    tipo_encuesta_id: string;
-    titulo: string;
-    descripcion?: string;
-    estado: EstadoEncuesta;
-    fecha_creacion?: Date;
-    fecha_actualizacion?: Date;
+    surveyId?: string;
+    title: string;
+    description?: string;
+    statusSurvey: SurveyStatus;
+    createdAt?: Date;
+    closeDate?: Date;
+    userId: string;
 }

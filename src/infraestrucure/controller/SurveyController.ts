@@ -2,70 +2,92 @@ import { Request, Response } from 'express';
 import { SurveyApplication } from '../../application/SurveyApplication';
 
 export class SurveyController {
-    constructor(private readonly app: SurveyApplication) {}
+  constructor(private readonly surveyApp: SurveyApplication) {}
 
-    // post /api/surveys
-    createSurvey = async (req: Request, res: Response) => {
-        try {
-            // Extraemos el id del token (gracias al middleware) para asociarlo al creador
-            const usuario_creador_id = req.user.id; 
-            const data = { ...req.body, usuario_creador_id };
-            
-            const newSurvey = await this.app.createSurvey(data);
-            res.status(201).json({ message: 'Encuesta creada en Borrador', data: newSurvey });
-        } catch (error: any) {
-            res.status(400).json({ error: error.message });
-        }
-    };
+  /**
+   * Crea una nueva encuesta asociada al usuario autenticado.
+   */
+  create = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const userId = req.body.user?.id || req.body.userId;
+      
+      const surveyId = await this.surveyApp.createSurvey({
+        title: req.body.title,
+        description: req.body.description,
+        closeDate: req.body.closeDate,
+        userId,
+      });
 
-    // get /api/surveys
-    getSurveys = async (req: Request, res: Response) => {
-        try {
-            const filtros = req.query; // Para manejar las búsquedas 
-            const surveys = await this.app.getSurveys(filtros);
-            res.status(200).json(surveys);
-        } catch (error: any) {
-            res.status(500).json({ error: error.message });
-        }
-    };
+      res.status(201).json({
+        message: 'Encuesta creada con éxito en estado Borrador',
+        surveyId,
+      });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
 
-    // get /api/surveys/:id
-    getSurveyDetail = async (req: Request, res: Response) => {
-        try {
-            const survey = await this.app.getSurveyDetail(req.params.id);
-            res.status(200).json(survey);
-        } catch (error: any) {
-            res.status(404).json({ error: error.message });
-        }
-    };
+  /**
+   * Obtiene todas las encuestas registradas.
+   */
+  getAll = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      const surveys = await this.surveyApp.getAllSurveys();
+      res.status(200).json(surveys);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  };
 
-    // put /api/surveys/:id (Editar información general)
-    updateSurvey = async (req: Request, res: Response) => {
-        try {
-            const updated = await this.app.updateSurvey(req.params.id, req.body);
-            res.status(200).json({ message: 'Encuesta actualizada', data: updated });
-        } catch (error: any) {
-            res.status(400).json({ error: error.message });
-        }
-    };
+  /**
+   * Obtiene el detalle de una encuesta por su UUID.
+   */
+  getById = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const survey = await this.surveyApp.getSurveyById(id);
+      res.status(200).json(survey);
+    } catch (error: any) {
+      res.status(404).json({ error: error.message });
+    }
+  };
 
-    // patch /api/surveys/:id/publish
-    publishSurvey = async (req: Request, res: Response) => {
-        try {
-            const published = await this.app.publishSurvey(req.params.id);
-            res.status(200).json({ message: 'Encuesta publicada exitosamente', data: published });
-        } catch (error: any) {
-            res.status(400).json({ error: error.message });
-        }
-    };
+  /**
+   * Actualiza la información general de una encuesta en Borrador.
+   */
+  update = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      await this.surveyApp.updateSurvey(id, req.body);
+      res.status(200).json({ message: 'Encuesta actualizada correctamente' });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
 
-    // patch /api/surveys/:id/deactivate (Borrado Lógico)
-    deactivateSurvey = async (req: Request, res: Response) => {
-        try {
-            const deactivated = await this.app.deactivateSurvey(req.params.id);
-            res.status(200).json({ message: 'Encuesta desactivada', data: deactivated });
-        } catch (error: any) {
-            res.status(400).json({ error: error.message });
-        }
-    };
+  /**
+   * Publica la encuesta para que pueda recibir respuestas.
+   */
+  publish = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      await this.surveyApp.publishSurvey(id);
+      res.status(200).json({ message: 'Encuesta publicada exitosamente y disponible' });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  /**
+   * Desactiva la encuesta (Cierre lógico).
+   */
+  deactivate = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      await this.surveyApp.deactivateSurvey(id);
+      res.status(200).json({ message: 'Encuesta desactivada correctamente' });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
 }

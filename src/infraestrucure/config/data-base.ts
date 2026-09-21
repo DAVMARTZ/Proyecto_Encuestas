@@ -1,20 +1,24 @@
 import { DataSource } from 'typeorm'
 import dotenv from "dotenv";
 import { User } from "../entities/User";
-import { Encuesta } from "../entities/Encuesta";
+import { SurveyEntity } from "../entities/Survey";
 import envs from './environment-vars';
+import { QuestionEntity } from '../entities/QuestionEntity';
+import { ResponseOptionEntity } from '../entities/ResponseOptionEntity';
+import { SurveyResponseEntity } from '../entities/SurveyResponseEntity';
+import { ResponseDetailEntity } from '../entities/ResponseDetailEntity';
 
 dotenv.config();
-    export const AppDataSource = new DataSource({
+	export const AppDataSource = new DataSource({
         type: "postgres",
         port: Number(envs.DB_PORT),
         username: envs.DB_USER,
         password: envs.DB_PASSWORD,
         database: envs.DB_NAME,
-        schema: "public",
+        //schema: "users",
         synchronize:true,
         logging:true,
-        entities: [User,Encuesta],
+        entities: [User, SurveyEntity,QuestionEntity,ResponseOptionEntity,SurveyResponseEntity, ResponseDetailEntity,],
     })
 
 //Conectar a la BD

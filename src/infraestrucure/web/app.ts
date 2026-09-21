@@ -1,8 +1,7 @@
 import express, {type Request, type Response} from "express";
 import userRoutes from "../routes/UserRoutes";
-import profileRoutes from "../routes/ProfileRoutes";
-import surveyRoutes from "../routes/SurveyRoutes";
-import cors from "cors"
+import { SurveyRoutes } from '../routes/SurveyRoutes';
+import { SurveyResponseRoutes } from '../routes/surveyResponseRoutes';
 
 class App{
     private app: express.Application = express();
@@ -20,11 +19,8 @@ class App{
 
     private routes():void{
         this.app.use("/api", userRoutes);
-
-        //DEV2
-        this.app.use("/api/profile", profileRoutes);
-        //DEV3
-        this.app.use("/api/surveys", surveyRoutes);
+        this.app.use('/api', SurveyRoutes);
+        this.app.use('/api', SurveyResponseRoutes);
     }
 
     getApp(){

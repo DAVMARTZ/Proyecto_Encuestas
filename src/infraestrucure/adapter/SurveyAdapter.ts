@@ -1,40 +1,81 @@
-import { AppDataSource } from '../config/data-base'; 
+import { Repository } from 'typeorm';
 import { SurveyPort } from '../../domain/SurveyPort';
-import { Survey, EstadoEncuesta } from '../../domain/Survey';
-import { Encuesta } from '../entities/Encuesta';
+import { Survey, SurveyStatus } from '../../domain/Survey';
+import { SurveyEntity } from '../entities/Survey'; 
+import { AppDataSource } from '../config/data-base';
 
 export class SurveyAdapter implements SurveyPort {
+  private readonly repository: Repository<SurveyEntity>;
+
+  constructor() {
+    this.repository = AppDataSource.getRepository(SurveyEntity);
+  }
+
+  /**
+   * Mapea una entidad de TypeORM al objeto puro del Dominio.
+   */
+  private toDomain(entity: SurveyEntity): Survey {
+    return {
+      surveyId: entity.surveyId,
+      title: entity.title,
+      description: entity.description,
+      statusSurvey: entity.statusSurvey as SurveyStatus,
+      createdAt: entity.createdAt,
+      closeDate: entity.closeDate,
+      userId: entity.userId,
+    };
+  }
+
+  /**
+   * Guarda una nueva encuesta en la base de datos.
+   */
+  async save(survey: Survey): Promise<string> {
+    const entity = this.repository.create({
+      title: survey.title,
+      description: survey.description,
+      statusSurvey: 'Borrador', 
+      closeDate: survey.closeDate,
+      userId: survey.userId,
+    });
     
-    async create(survey: Survey): Promise<Survey> {
-        const repo = AppDataSource.getRepository(Encuesta);
-        const newSurvey = repo.create(survey);
-        return await repo.save(newSurvey);
-    }
+    const saved = await this.repository.save(entity);
+    return saved.surveyId;
+  }
 
-    async findAll(filtros?: any): Promise<Survey[]> {
-        const repo = AppDataSource.getRepository(Encuesta);
-        return await repo.find();
-    }
+  /**
+   * Obtiene todos los registros de encuestas en la base de datos.
+   */
+  async findAll(): Promise<Survey[]> {
+    const entities = await this.repository.find();
+    return entities.map((e) => this.toDomain(e));
+  }
 
-    async findById(id: string): Promise<Survey | null> {
-        const repo = AppDataSource.getRepository(Encuesta);
-        const result = await repo.findOne({ where: { id: id as any } });
-        return result || null;
-    }
+  /**
+   * Busca un registro específico por su UUID.
+   */
+  async findById(id: string): Promise<Survey | null> {
+    const entity = await this.repository.findOneBy({ surveyId: id });
+    return entity ? this.toDomain(entity) : null;
+  }
 
-    async update(id: string, data: Partial<Survey>): Promise<Survey> {
-        const repo = AppDataSource.getRepository(Encuesta);
-        await repo.update(id, data);
-        const updated = await this.findById(id);
-        if (!updated) throw new Error('Error al recuperar la encuesta actualizada');
-        return updated;
-    }
+  /**
+   * Actualiza propiedades generales de la encuesta excluyendo el estado.
+   */
+  async update(id: string, survey: Partial<Survey>): Promise<boolean> {
+    const updateData: Partial<SurveyEntity> = {};
+    if (survey.title !== undefined) updateData.title = survey.title;
+    if (survey.description !== undefined) updateData.description = survey.description;
+    if (survey.closeDate !== undefined) updateData.closeDate = survey.closeDate;
 
-    async changeStatus(id: string, status: EstadoEncuesta): Promise<Survey> {
-        const repo = AppDataSource.getRepository(Encuesta);
-        await repo.update(id, { estado: status });
-        const updated = await this.findById(id);
-        if (!updated) throw new Error('Error al recuperar la encuesta actualizada');
-        return updated;
-    }
+    const result = await this.repository.update(id, updateData);
+    return (result.affected ?? 0) > 0;
+  }
+
+  /**
+   * Actualiza únicamente la columna de estado de la encuesta.
+   */
+  async updateStatus(id: string, status: SurveyStatus): Promise<boolean> {
+    const result = await this.repository.update(id, { statusSurvey: status });
+    return (result.affected ?? 0) > 0;
+  }
 }

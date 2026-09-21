@@ -6,7 +6,7 @@ import { UserApplication } from "../../application/UserApplication";
 import { User } from "../../domain/User";
 
 export class UserController {
-    private app: UserApplication;
+    private app : UserApplication;
 
     constructor(application: UserApplication) {
         this.app = application;
