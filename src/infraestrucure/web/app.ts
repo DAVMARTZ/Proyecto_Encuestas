@@ -2,6 +2,7 @@ import express, {type Request, type Response} from "express";
 import userRoutes from "../routes/UserRoutes";
 import { SurveyRoutes } from '../routes/SurveyRoutes';
 import { SurveyResponseRoutes } from '../routes/surveyResponseRoutes';
+import cors from 'cors';
 
 class App{
     private app: express.Application = express();

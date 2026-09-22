@@ -1,6 +1,5 @@
 import joi from "joi"; //validación
 import "dotenv/config"; //maneh¿jar las variables de entorno desde el process
-import { error } from "console";
 
 export type ReturnEnvironmentVars = {
     PORT: number;
