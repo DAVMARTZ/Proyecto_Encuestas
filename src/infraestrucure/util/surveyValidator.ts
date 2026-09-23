@@ -14,7 +14,10 @@ export const validateSurveyPayload = (req: Request, res: Response, next: NextFun
     closeDate: joi.date().iso().optional().messages({
       'date.format': 'La fecha de cierre debe tener un formato válido.'
     }),
-    userId: joi.string().uuid().required() 
+    userId: joi.number().integer().positive().required().messages({
+      'number.base': 'El ID del usuario debe ser un número entero.',
+      'any.required': 'El ID del usuario es obligatorio.'
+    })
   }).unknown(true); 
 
   const { error } = schema.validate(req.body);

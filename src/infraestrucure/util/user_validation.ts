@@ -4,27 +4,28 @@ export type ReturnUserData = {
     name: string;
     email: string;
     password: string;
-    status: number;
+    avatarBase64?: string;
+    status?: number;
+    statusUser?: number;
+    roleId?: number;
 }
 
 type ValidationUserData = {
-    error : joi.ValidationError | undefined;
+    error: joi.ValidationError | undefined;
     value: ReturnUserData;
 }
 
-function validateUserData(data: any): ValidationUserData{
+function validateUserData(data: any): ValidationUserData {
     const userSchema = joi.object({
         name: joi
             .string()
             .trim()
             .min(3)
-            .pattern(/^[A-Za-zÁÉÍÓÚáéíóúÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÑñ]+)?$/)
             .required()
             .messages({
                 'string.base': 'El nombre debe ser un texto',
                 'string.empty': 'El nombre es requerido',
                 'string.min': 'El nombre debe tener al menos 3 caracteres',
-                'string.pattern.base': 'El nombre solo puede contener letras y un espacio',
             }),
         email: joi
             .string()
@@ -37,30 +38,24 @@ function validateUserData(data: any): ValidationUserData{
         password: joi
             .string()
             .min(6)
-            .pattern(/^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/)
             .required()
             .messages({
                 'string.min': 'La contraseña debe tener al menos 6 caracteres',
-                'string.pattern.base': 'La contraseña debe tener letras y números',
                 'string.empty': 'La contraseña es requerida',
             }),
-        status: joi
-            .number()
-            .valid(0, 1)
-            .required()
-            .messages({
-                'number.base': 'El estado debe ser numérico',
-                'any.only': 'El estado debe ser 0 o 1',
-                'any.required': 'El estado es obligatorio',
-            }),
-    }).unknown(false);
-    const {error, value} = userSchema.validate(data,{abortEarly:false});
-    return {error, value};
+        avatarBase64: joi.string().optional().allow(null, ''),
+        roleId: joi.number().integer().positive().optional().allow(null),
+        status: joi.number().valid(0, 1).optional().default(1),
+        statusUser: joi.number().valid(0, 1).optional(),
+    }).unknown(true);
+
+    const { error, value } = userSchema.validate(data, { abortEarly: false });
+    return { error, value };
 }
 
-export const loadUserData = (data:any): ReturnUserData => {
+export const loadUserData = (data: any): ReturnUserData => {
     const result = validateUserData(data);
-    if(result.error){
+    if (result.error) {
         const message = result.error.details.map(d => d.message).join(', ');
         throw new Error(message);
     }

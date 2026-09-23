@@ -5,33 +5,36 @@ import { ResponseOptionEntity } from './ResponseOptionEntity';
 
 @Entity('response_details')
 export class ResponseDetailEntity {
-  @PrimaryGeneratedColumn('uuid', { name: 'detail_id' })
-  detailId: string;
+  @PrimaryGeneratedColumn('increment', { name: 'detail_id' })
+  detailId!: number;
 
   @Column({ name: 'response_text', type: 'text', nullable: true })
-  responseText: string;
+  responseText?: string;
 
-  @Column({ name: 'survey_response_id', type: 'uuid' })
-  surveyResponseId: string;
+  @Column({ name: 'status', type: 'smallint', default: 1 })
+  status!: number;
 
-  @Column({ name: 'question_id', type: 'uuid' })
-  questionId: string;
+  @Column({ name: 'survey_response_id', type: 'int' })
+  surveyResponseId!: number;
 
-  @Column({ name: 'option_id', type: 'uuid', nullable: true })
-  optionId: string;
+  @Column({ name: 'question_id', type: 'int' })
+  questionId!: number;
+
+  @Column({ name: 'option_id', type: 'int', nullable: true })
+  optionId?: number;
 
   // Relación N:1 con SurveyResponses
   @ManyToOne(() => SurveyResponseEntity, response => response.details)
   @JoinColumn({ name: 'survey_response_id' })
-  surveyResponse: SurveyResponseEntity;
+  surveyResponse!: SurveyResponseEntity;
 
   // Relación N:1 con Questions
   @ManyToOne(() => QuestionEntity)
   @JoinColumn({ name: 'question_id' })
-  question: QuestionEntity;
+  question!: QuestionEntity;
 
   // Relación N:1 con ResponseOptions
   @ManyToOne(() => ResponseOptionEntity)
   @JoinColumn({ name: 'option_id' })
-  option: ResponseOptionEntity;
+  option!: ResponseOptionEntity;
 }

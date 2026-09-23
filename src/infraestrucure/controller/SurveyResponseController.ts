@@ -9,16 +9,24 @@ export class SurveyResponseController {
    */
   submit = async (req: Request, res: Response): Promise<void> => {
     try {
-      // Prioriza el ID de la URL 
-      const surveyId = req.params.surveyId; 
-      
-      // Soporta usuarios autenticados mediante jwt o envíos anónimos
-      const userId = req.body.user?.id || req.body.userId || null;
+      const surveyId = parseInt(req.params.surveyId, 10);
+      if (isNaN(surveyId) || surveyId <= 0) {
+        res.status(400).json({ error: 'ID de encuesta inválido. Debe ser un entero positivo.' });
+        return;
+      }
+
+      const rawUserId = req.body.user?.id || req.body.userId;
+      const userId = rawUserId ? Number(rawUserId) : undefined;
 
       const responseId = await this.responseApp.submitResponse({
         ...req.body,
         surveyId,
         userId,
+        details: (req.body.details || []).map((d: any) => ({
+          questionId: Number(d.questionId),
+          optionId: d.optionId ? Number(d.optionId) : undefined,
+          responseText: d.responseText
+        }))
       });
 
       res.status(201).json({
@@ -35,7 +43,12 @@ export class SurveyResponseController {
    */
   getResults = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { surveyId } = req.params;
+      const surveyId = parseInt(req.params.surveyId, 10);
+      if (isNaN(surveyId) || surveyId <= 0) {
+        res.status(400).json({ error: 'ID de encuesta inválido. Debe ser un entero positivo.' });
+        return;
+      }
+
       const results = await this.responseApp.getResults(surveyId);
       res.status(200).json(results);
     } catch (error: any) {

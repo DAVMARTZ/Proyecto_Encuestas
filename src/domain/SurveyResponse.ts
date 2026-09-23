@@ -1,19 +1,21 @@
 export interface ResponseDetail {
-  detailId?: string;
+  detailId?: number;
   responseText?: string; 
-  questionId: string;
-  optionId?: string; 
+  questionId: number;
+  optionId?: number; 
+  status?: number;
 }
 
 export interface SurveyResponse {
-  surveyResponseId?: string;
+  surveyResponseId?: number;
   submittedAt?: Date;
-  surveyId: string;
-  userId?: string; 
+  surveyId: number;
+  userId?: number; 
+  status?: number;
   details: ResponseDetail[];
 }
 
 export interface SurveyResponsePort {
-  saveResponse(response: SurveyResponse): Promise<string>;
-  getResponsesBySurvey(surveyId: string): Promise<SurveyResponse[]>;
+  saveResponse(response: SurveyResponse): Promise<number>;
+  getResponsesBySurvey(surveyId: number): Promise<SurveyResponse[]>;
 }

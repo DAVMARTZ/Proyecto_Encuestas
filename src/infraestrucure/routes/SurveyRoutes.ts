@@ -6,7 +6,6 @@ import { validateSurveyPayload } from '../util/surveyValidator';
 
 const router = Router();
 
-
 const surveyAdapter = new SurveyAdapter();
 const surveyApplication = new SurveyApplication(surveyAdapter);
 const surveyController = new SurveyController(surveyApplication);
@@ -17,7 +16,12 @@ router.get('/surveys', surveyController.getAll);
 router.get('/surveys/:id', surveyController.getById);
 router.put('/surveys/:id', validateSurveyPayload, surveyController.update);
 
+// Publicación y cambios de estado
 router.patch('/surveys/:id/publish', surveyController.publish);
+router.patch('/surveys/:id/activate', surveyController.activate);
+
+// Inactivación lógica (cero borrado físico)
 router.patch('/surveys/:id/deactivate', surveyController.deactivate);
+router.delete('/surveys/:id', surveyController.delete);
 
 export const SurveyRoutes = router;

@@ -7,8 +7,8 @@ export class UserApplication {
   constructor(port: UserPort) {
     this.port = port;
   }
+
   async createUser(user: Omit<User, "id">): Promise<number> {
-    //Antes de crear un usuario debo validar : el email no existe
     const existUser = await this.port.getUserByEmail(user.email);
     if (existUser) {
       throw new Error("Este email ya está registrado");
@@ -24,8 +24,8 @@ export class UserApplication {
     return await this.port.getUserByEmail(email);
   }
 
-  async getAllUsers(): Promise<User[]> {
-    return await this.port.getAllUsers();
+  async getAllUsers(includeInactive: boolean = false): Promise<User[]> {
+    return await this.port.getAllUsers(includeInactive);
   }
 
   async updateUser(id: number, user: Partial<User>): Promise<boolean> {
@@ -42,7 +42,24 @@ export class UserApplication {
     return this.port.updateUser(id, user);
   }
 
+  /**
+   * Baja lógica del usuario (cambio de estado a INACTIVO, sin borrado físico)
+   */
   async deleteUser(id: number): Promise<boolean> {
     return await this.port.deleteUser(id);
+  }
+
+  /**
+   * Inactivación lógica explícita
+   */
+  async deactivateUser(id: number): Promise<boolean> {
+    return await this.port.deactivateUser(id);
+  }
+
+  /**
+   * Reactivación lógica del usuario
+   */
+  async activateUser(id: number): Promise<boolean> {
+    return await this.port.activateUser(id);
   }
 }

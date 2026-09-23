@@ -1,9 +1,10 @@
-export type ResponseOptionStatus = "Activa" | "Inactiva";
+export type ResponseOptionStatus = 0 | 1 | number;
 
 export interface ResponseOption {
-  optionId?: string;
+  optionId?: number;
   optionText: string;
   displayOrder: number;
-  statusResponseOption: ResponseOptionStatus | string;
-  questionId: string;
+  status: ResponseOptionStatus;
+  statusResponseOption?: ResponseOptionStatus; // Compatibilidad
+  questionId: number;
 }

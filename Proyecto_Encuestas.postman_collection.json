@@ -1,0 +1,303 @@
+{
+  "info": {
+    "name": "Proyecto Encuestas — API Collection (Único Archivo)",
+    "description": "Colección completa y autocontenida de endpoints para el Backend oficial en `Proyecto_Encuestas`.\n- Arquitectura Hexagonal + TypeORM + PostgreSQL\n- IDs numéricos enteros autoincrementales (SERIAL / INT)\n- Compresión/descompresión de foto en BYTEA\n- Manejo de estados como bit/entero (1 = ACTIVO, 0 = INACTIVO) y baja lógica sin borrado físico\n\n⚙️ Todas las variables de entorno están integradas en esta colección.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",  "value": "http://localhost:3000/api", "type": "string" },
+    { "key": "userId",   "value": "1",                         "type": "string" },
+    { "key": "roleId",   "value": "1",                         "type": "string" },
+    { "key": "surveyId", "value": "1",                         "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🎭 Roles",
+      "item": [
+        {
+          "name": "Listar todos los roles (Activos)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.length > 0) {",
+                  "  pm.collectionVariables.set('roleId', json[0].roleId.toString());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/roles"
+          }
+        },
+        {
+          "name": "Listar todos los roles (Incluye Inactivos)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/roles?includeInactive=true"
+          }
+        },
+        {
+          "name": "Crear rol",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.roleId) {",
+                  "  pm.collectionVariables.set('roleId', json.roleId.toString());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/roles",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"DOCENTE\",\n  \"description\": \"Profesor que puede evaluar y crear encuestas\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Inactivar rol (Baja lógica)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/roles/{{roleId}}/deactivate"
+          }
+        },
+        {
+          "name": "Reactivar rol",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/roles/{{roleId}}/activate"
+          }
+        },
+        {
+          "name": "Eliminar rol (DELETE lógico sin borrado físico)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/roles/{{roleId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Usuarios",
+      "item": [
+        {
+          "name": "Crear Usuario con Foto en Base64 (Comprimida a BYTEA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.userId) {",
+                  "  pm.collectionVariables.set('userId', json.userId.toString());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Laura Morales\",\n  \"email\": \"laura.morales@universidad.edu.co\",\n  \"password\": \"Segura123!\",\n  \"avatarBase64\": \"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAARCAAyADIDASIAAhEBAxEB/8QAGwABAAIDAQEAAAAAAAAAAAAAAAUGAwQHAQL/xAAuEAABAwMDAgUDBQAAAAAAAAABAAIDBBEFEiExBhNBUWFxFCKBkaHB0eHw8f/EABQBAQAAAAAAAAAAAAAAAAAAAAD/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwDuFERAEREB//2Q==\",\n  \"roleId\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener Todos los Usuarios (Activos)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users"
+          }
+        },
+        {
+          "name": "Obtener Todos los Usuarios (Incluye Inactivos)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users?includeInactive=true"
+          }
+        },
+        {
+          "name": "Obtener Usuario por ID (Foto descomprimida a Base64)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/{{userId}}"
+          }
+        },
+        {
+          "name": "Obtener Usuario por Email",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/email/admin@encuestas.com"
+          }
+        },
+        {
+          "name": "Actualizar Usuario (Actualizar Datos y Foto)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/users/{{userId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Laura Morales Actualizada\",\n  \"avatarBase64\": \"data:image/jpeg;base64,/9j/4AAQSkZJRg==\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Inactivar Usuario (Baja Lógica PATCH)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/users/{{userId}}/deactivate"
+          }
+        },
+        {
+          "name": "Reactivar Usuario (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/users/{{userId}}/activate"
+          }
+        },
+        {
+          "name": "Eliminar Usuario (DELETE lógico sin borrado físico)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/users/{{userId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Encuestas",
+      "item": [
+        {
+          "name": "Crear Encuesta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.surveyId) {",
+                  "  pm.collectionVariables.set('surveyId', json.surveyId.toString());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/surveys",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Evaluación Docente Semestre 2026-2\",\n  \"description\": \"Evaluación sobre metodología pedagógica y acompañamiento del docente.\",\n  \"closeDate\": \"2026-12-20T23:59:59.000Z\",\n  \"userId\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener Todas las Encuestas (Activas y Borradores)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/surveys"
+          }
+        },
+        {
+          "name": "Obtener Todas las Encuestas (Incluye Inactivas)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/surveys?includeInactive=true"
+          }
+        },
+        {
+          "name": "Obtener Encuesta por ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/surveys/{{surveyId}}"
+          }
+        },
+        {
+          "name": "Actualizar Encuesta en Borrador",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/surveys/{{surveyId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Evaluación Docente Semestre 2026-2 (Modificada)\",\n  \"description\": \"Nueva descripción actualizada\",\n  \"closeDate\": \"2026-12-25T23:59:59.000Z\",\n  \"userId\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Publicar Encuesta (Activar)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/surveys/{{surveyId}}/publish"
+          }
+        },
+        {
+          "name": "Inactivar Encuesta (Baja lógica)",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/surveys/{{surveyId}}/deactivate"
+          }
+        },
+        {
+          "name": "Reactivar Encuesta",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/surveys/{{surveyId}}/activate"
+          }
+        },
+        {
+          "name": "Eliminar Encuesta (DELETE lógico sin borrado físico)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/surveys/{{surveyId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Respuestas",
+      "item": [
+        {
+          "name": "Enviar Respuestas de Encuesta",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/surveys/{{surveyId}}/responses",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"surveyId\": 1,\n  \"userId\": 1,\n  \"details\": [\n    {\n      \"questionId\": 1,\n      \"responseText\": \"Excelente metodología y acompañamiento del docente.\"\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Consultar Respuestas de la Encuesta",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/surveys/{{surveyId}}/responses"
+          }
+        }
+      ]
+    }
+  ]
+}

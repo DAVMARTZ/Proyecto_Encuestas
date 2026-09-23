@@ -2,16 +2,18 @@ import { Request, Response, NextFunction } from 'express';
 import joi from 'joi';
 
 const responseDetailSchema = joi.object({
-  questionId: joi.string().uuid().required().messages({
-    'string.guid': 'El ID de la pregunta debe ser un UUID válido.'
+  questionId: joi.number().integer().positive().required().messages({
+    'number.base': 'El ID de la pregunta debe ser un número entero.'
   }),
-  optionId: joi.string().uuid().allow(null).optional(),
+  optionId: joi.number().integer().positive().allow(null).optional(),
   responseText: joi.string().allow(null, '').optional()
 }).or('optionId', 'responseText');
 
 export const surveyResponsePayloadSchema = joi.object({
-  surveyId: joi.string().uuid().required(),
-  userId: joi.string().uuid().allow(null).optional(),
+  surveyId: joi.number().integer().positive().required().messages({
+    'number.base': 'El ID de la encuesta debe ser un número entero.'
+  }),
+  userId: joi.number().integer().positive().allow(null).optional(),
   details: joi.array().items(responseDetailSchema).min(1).required().messages({
     'array.min': 'El envío debe contener al menos una respuesta.'
   })
@@ -25,5 +27,5 @@ export const validateSurveyResponse = (req: Request, res: Response, next: NextFu
     return;
   }
 
-  next(); // Si no hay error, permite avanzar al controlador
+  next();
 };

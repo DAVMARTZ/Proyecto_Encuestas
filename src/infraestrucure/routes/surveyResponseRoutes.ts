@@ -18,7 +18,6 @@ router.post(
 
 router.get(
   '/surveys/:surveyId/responses',
-   validateSurveyResponse,
   responseController.getResults
 );
 

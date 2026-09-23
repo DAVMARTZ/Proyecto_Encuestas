@@ -1,7 +1,13 @@
+export type UserStatus = 0 | 1 | number;
+
 export interface User {
-    id: number;
+    id?: number;
     name: string;
     email: string;
     password: string;
-    status: number;
+    avatarBase64?: string;
+    createdAt?: Date;
+    status: UserStatus;
+    statusUser?: UserStatus;
+    roleId?: number;
 }

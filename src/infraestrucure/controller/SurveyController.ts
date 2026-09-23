@@ -5,11 +5,11 @@ export class SurveyController {
   constructor(private readonly surveyApp: SurveyApplication) {}
 
   /**
-   * Crea una nueva encuesta asociada al usuario autenticado.
+   * Crea una nueva encuesta asociada al usuario.
    */
   create = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = req.body.user?.id || req.body.userId;
+      const userId = Number(req.body.user?.id || req.body.userId);
       
       const surveyId = await this.surveyApp.createSurvey({
         title: req.body.title,
@@ -30,9 +30,10 @@ export class SurveyController {
   /**
    * Obtiene todas las encuestas registradas.
    */
-  getAll = async (_req: Request, res: Response): Promise<void> => {
+  getAll = async (req: Request, res: Response): Promise<void> => {
     try {
-      const surveys = await this.surveyApp.getAllSurveys();
+      const includeInactive = req.query.includeInactive === 'true';
+      const surveys = await this.surveyApp.getAllSurveys(includeInactive);
       res.status(200).json(surveys);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -40,11 +41,16 @@ export class SurveyController {
   };
 
   /**
-   * Obtiene el detalle de una encuesta por su UUID.
+   * Obtiene el detalle de una encuesta por su ID numérico.
    */
   getById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id) || id <= 0) {
+        res.status(400).json({ error: 'ID inválido. Debe ser un entero positivo.' });
+        return;
+      }
+
       const survey = await this.surveyApp.getSurveyById(id);
       res.status(200).json(survey);
     } catch (error: any) {
@@ -57,7 +63,12 @@ export class SurveyController {
    */
   update = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id) || id <= 0) {
+        res.status(400).json({ error: 'ID inválido. Debe ser un entero positivo.' });
+        return;
+      }
+
       await this.surveyApp.updateSurvey(id, req.body);
       res.status(200).json({ message: 'Encuesta actualizada correctamente' });
     } catch (error: any) {
@@ -70,24 +81,59 @@ export class SurveyController {
    */
   publish = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id) || id <= 0) {
+        res.status(400).json({ error: 'ID inválido. Debe ser un entero positivo.' });
+        return;
+      }
+
       await this.surveyApp.publishSurvey(id);
-      res.status(200).json({ message: 'Encuesta publicada exitosamente y disponible' });
+      res.status(200).json({ message: 'Encuesta publicada exitosamente y disponible (status: 1 - ACTIVO)' });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
   };
 
   /**
-   * Desactiva la encuesta (Cierre lógico).
+   * Inactiva lógicamente la encuesta (cierre lógico / baja lógica sin borrado físico).
    */
   deactivate = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { id } = req.params;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id) || id <= 0) {
+        res.status(400).json({ error: 'ID inválido. Debe ser un entero positivo.' });
+        return;
+      }
+
       await this.surveyApp.deactivateSurvey(id);
-      res.status(200).json({ message: 'Encuesta desactivada correctamente' });
+      res.status(200).json({ message: 'Encuesta inactivada lógicamente (status: 0 - INACTIVO)' });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
+  };
+
+  /**
+   * Reactiva la encuesta.
+   */
+  activate = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id) || id <= 0) {
+        res.status(400).json({ error: 'ID inválido. Debe ser un entero positivo.' });
+        return;
+      }
+
+      await this.surveyApp.activateSurvey(id);
+      res.status(200).json({ message: 'Encuesta reactivada exitosamente (status: 1 - ACTIVO)' });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  };
+
+  /**
+   * Eliminación lógica vía DELETE (cero borrado físico).
+   */
+  delete = async (req: Request, res: Response): Promise<void> => {
+    return this.deactivate(req, res);
   };
 }

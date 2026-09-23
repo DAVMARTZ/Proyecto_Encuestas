@@ -1,17 +1,12 @@
-/**
- * Define los estados permitidos según la regla de negocio para status_survey.
- */
-export type SurveyStatus = "Borrador" | "Publicada" | "Inactiva";
+export type SurveyStatus = 0 | 1 | number;
 
-/**
- * Entidad principal de Encuesta con la tabla 'surveys'.
- */
 export interface Survey {
-    surveyId?: string;
+    surveyId?: number;
     title: string;
     description?: string;
-    statusSurvey: SurveyStatus;
+    status: SurveyStatus;
+    statusSurvey?: SurveyStatus;
     createdAt?: Date;
     closeDate?: Date;
-    userId: string;
+    userId: number;
 }

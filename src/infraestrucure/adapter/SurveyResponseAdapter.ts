@@ -10,29 +10,30 @@ export class SurveyResponseAdapter implements SurveyResponsePort {
     this.repository = AppDataSource.getRepository(SurveyResponseEntity);
   }
 
-  /**
-   * Guarda el envío y sus respuestas individuales usando typeorm
-   */
-  async saveResponse(response: SurveyResponse): Promise<string> {
+  async saveResponse(response: SurveyResponse): Promise<number> {
     const entity = this.repository.create({
       surveyId: response.surveyId,
       userId: response.userId,
-      details: response.details,
+      status: 1,
+      details: response.details.map(d => ({
+        questionId: d.questionId,
+        optionId: d.optionId,
+        responseText: d.responseText,
+        status: 1
+      })),
     });
 
     const saved = await this.repository.save(entity);
     return saved.surveyResponseId;
   }
 
-  /**
-   * Obtiene todos los envíos con sus detalles haciendo JOIN a la tabla response_details.
-   */
-  async getResponsesBySurvey(surveyId: string): Promise<SurveyResponse[]> {
+  async getResponsesBySurvey(surveyId: number): Promise<SurveyResponse[]> {
     const entities = await this.repository.find({
       where: { surveyId },
       relations: {
-        details: true // Trae todas las respuestas individuales asociadas
-      }
+        details: true
+      },
+      order: { surveyResponseId: 'ASC' }
     });
 
     return entities.map(entity => ({
@@ -40,11 +41,13 @@ export class SurveyResponseAdapter implements SurveyResponsePort {
       submittedAt: entity.submittedAt,
       surveyId: entity.surveyId,
       userId: entity.userId,
+      status: entity.status,
       details: entity.details.map(detail => ({
         detailId: detail.detailId,
         questionId: detail.questionId,
         optionId: detail.optionId,
-        responseText: detail.responseText
+        responseText: detail.responseText,
+        status: detail.status
       }))
     }));
   }

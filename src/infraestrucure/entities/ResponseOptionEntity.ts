@@ -3,23 +3,23 @@ import { QuestionEntity } from './QuestionEntity';
 
 @Entity('response_options')
 export class ResponseOptionEntity {
-  @PrimaryGeneratedColumn('uuid', { name: 'option_id' })
-  optionId: string;
+  @PrimaryGeneratedColumn('increment', { name: 'option_id' })
+  optionId!: number;
 
   @Column({ name: 'option_text', type: 'varchar', length: 300 })
-  optionText: string;
+  optionText!: string;
 
   @Column({ name: 'display_order', type: 'int' })
-  displayOrder: number;
+  displayOrder!: number;
 
-  @Column({ name: 'status_response_option', type: 'varchar', length: 30 })
-  statusResponseOption: string;
+  @Column({ name: 'status', type: 'smallint', default: 1 })
+  status!: number;
 
-  @Column({ name: 'question_id', type: 'uuid' })
-  questionId: string;
+  @Column({ name: 'question_id', type: 'int' })
+  questionId!: number;
 
   // Relación N:1 con Questions
   @ManyToOne(() => QuestionEntity, question => question.options)
   @JoinColumn({ name: 'question_id' })
-  question: QuestionEntity;
+  question!: QuestionEntity;
 }
