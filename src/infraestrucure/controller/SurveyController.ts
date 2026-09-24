@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { SurveyApplication } from '../../application/SurveyApplication';
+import { SurveyQRData } from '../../domain/SurveyQR';
 
 export class SurveyController {
   constructor(private readonly surveyApp: SurveyApplication) {}
@@ -136,4 +137,21 @@ export class SurveyController {
   delete = async (req: Request, res: Response): Promise<void> => {
     return this.deactivate(req, res);
   };
+  /**
+   * Generar QR de encuesta
+   */
+  // GET /api/surveys/:id/qr-payload
+  async getSurveyQRPayload(req: Request, res: Response) {
+    const { id } = req.params;
+    
+    // Generamos una estructura de datos única para validar
+    const qrData: SurveyQRData = {
+      appIdentifier: 'MY_SURVEY_APP_2026',
+      surveyId: id
+    };
+
+    return res.status(200).json({
+      qrString: JSON.stringify(qrData)
+    });
+  }
 }

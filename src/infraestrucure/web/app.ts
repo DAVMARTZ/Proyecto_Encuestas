@@ -5,6 +5,14 @@ import { SurveyRoutes } from '../routes/SurveyRoutes';
 import { SurveyResponseRoutes } from '../routes/surveyResponseRoutes';
 import roleRoutes from '../routes/RoleRoutes';
 
+const app = express();
+
+// Habilitar CORS para peticiones desde Angular y Capacitor
+app.use(cors({
+  origin: '*', // Reemplazar y colocar URL
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 class App {
     private app: express.Application;
 
