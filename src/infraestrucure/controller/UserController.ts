@@ -12,6 +12,30 @@ export class UserController {
         this.app = application;
     }
 
+    async login(req: Request, res: Response): Promise<Response> {
+        try {
+            const { email, password } = req.body;
+            if (!email || !password) {
+                return res.status(400).json({ error: "Email y contraseña son requeridos" });
+            }
+
+            const result = await this.app.login(email, password);
+            return res.status(200).json({
+                message: "Inicio de sesión exitoso",
+                token: result.token,
+                user: result.user
+            });
+        } catch (error) {
+            if (error instanceof Error) {
+                if (error.message.includes("inactivo")) {
+                    return res.status(403).json({ error: error.message });
+                }
+                return res.status(401).json({ error: error.message });
+            }
+            return res.status(500).json({ error: "Error interno del servidor" });
+        }
+    }
+
     async createUser(req: Request, res: Response): Promise<Response> {
         try {
             const data = loadUserData(req.body);
@@ -74,7 +98,8 @@ export class UserController {
                 return res.status(404).json({ error: "Usuario no encontrado" });
             }
 
-            return res.status(200).json(user);
+            const { password: _, ...usuarioSinPassword } = user;
+            return res.status(200).json(usuarioSinPassword);
         } catch (error) {
             if (error instanceof Error) {
                 return res.status(500).json({ error: "Error interno del servidor", details: error.message });
@@ -92,7 +117,8 @@ export class UserController {
                 return res.status(404).json({ message: "Usuario no encontrado" });
             }
 
-            return res.status(200).json(user);
+            const { password: _, ...usuarioSinPassword } = user;
+            return res.status(200).json(usuarioSinPassword);
         } catch (error) {
             if (error instanceof Error) {
                 return res.status(400).json({ error: error.message });
@@ -108,7 +134,13 @@ export class UserController {
         try {
             const includeInactive = req.query.includeInactive === 'true';
             const users = await this.app.getAllUsers(includeInactive);
-            return res.status(200).json(users);
+
+            const usersSafe = users.map((user) => {
+                const { password: _, ...usuarioSinPassword } = user;
+                return usuarioSinPassword;
+            });
+
+            return res.status(200).json(usersSafe);
         } catch (error) {
             return res.status(500).json({ message: "Error al obtener usuarios", error });
         }

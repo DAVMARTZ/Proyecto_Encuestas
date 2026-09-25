@@ -1,5 +1,7 @@
+import bcrypt from "bcryptjs";
 import { User } from "../domain/User";
 import { UserPort } from "../domain/UserPort";
+import { AuthApplication } from "./AuthApplication";
 
 export class UserApplication {
   private port: UserPort;
@@ -13,7 +15,37 @@ export class UserApplication {
     if (existUser) {
       throw new Error("Este email ya está registrado");
     }
+
+    // Hashear la contraseña con bcrypt (cost factor 10)
+    const hashedPassword = await bcrypt.hash(user.password, 10);
+    user.password = hashedPassword;
+
     return this.port.createUser(user);
+  }
+
+  async login(email: string, password: string): Promise<{ token: string; user: Omit<User, "password"> }> {
+    const user = await this.port.getUserByEmail(email);
+    if (!user) {
+      throw new Error("Credenciales inválidas");
+    }
+
+    if (user.status === 0 || user.statusUser === 0) {
+      throw new Error("El usuario se encuentra inactivo");
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new Error("Credenciales inválidas");
+    }
+
+    const token = AuthApplication.generateToken({
+      userId: user.id,
+      email: user.email,
+      roleId: user.roleId,
+    });
+
+    const { password: _, ...usuarioSinPassword } = user;
+    return { token, user: usuarioSinPassword };
   }
 
   async getUserById(id: number): Promise<User | null> {
@@ -38,6 +70,9 @@ export class UserApplication {
       if (emailTaken && emailTaken.id !== id) {
         throw new Error("El email ya está en uso");
       }
+    }
+    if (user.password) {
+      user.password = await bcrypt.hash(user.password, 10);
     }
     return this.port.updateUser(id, user);
   }

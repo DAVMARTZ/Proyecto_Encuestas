@@ -86,10 +86,10 @@ Backend_Encuestas/
 
 Es la capa más interna. **No importa Express, TypeORM, ni ninguna librería.** Solo define las reglas y contratos del negocio.
 
-| Archivo | Qué hace | Qué debe ir aquí |
-|---|---|---|
-| `User.ts` | Define la interface `User` con los campos del modelo de negocio (`id`, `name`, `email`, `password`, `status`) | Interfaces y tipos puros del dominio. Sin decoradores, sin ORM |
-| `UserPort.ts` | Define el **Puerto** `UserPort`: una interface con los métodos que la app necesita (`createUser`, `updateUser`, `deleteUser`, etc.) | Solo interfaces/contratos. Nunca implementaciones |
+| Archivo         | Qué hace                                                                                                                                         | Qué debe ir aquí                                             |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `User.ts`     | Define la interface`User` con los campos del modelo de negocio (`id`, `name`, `email`, `password`, `status`)                          | Interfaces y tipos puros del dominio. Sin decoradores, sin ORM |
+| `UserPort.ts` | Define el**Puerto** `UserPort`: una interface con los métodos que la app necesita (`createUser`, `updateUser`, `deleteUser`, etc.) | Solo interfaces/contratos. Nunca implementaciones              |
 
 > ⚠️ **Regla de oro**: Nada en `domain/` debe importar algo de `infraestrucure/` o `application/`. El dominio es completamente independiente.
 
@@ -99,9 +99,9 @@ Es la capa más interna. **No importa Express, TypeORM, ni ninguna librería.** 
 
 Contiene la **lógica de negocio orquestada**. Sabe qué operaciones existen, en qué orden ejecutarlas y qué validaciones aplicar. Se comunica con el dominio a través del **puerto**.
 
-| Archivo | Qué hace | Qué debe ir aquí |
-|---|---|---|
-| `UserApplication.ts` | Clase que recibe un `UserPort` por constructor (inyección de dependencias) y ejecuta los casos de uso: validar email duplicado antes de crear, verificar existencia antes de actualizar, etc. | Clases de casos de uso. Lógica de negocio como validaciones de reglas, flujos multi-paso |
+| Archivo                | Qué hace                                                                                                                                                                                       | Qué debe ir aquí                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `UserApplication.ts` | Clase que recibe un`UserPort` por constructor (inyección de dependencias) y ejecuta los casos de uso: validar email duplicado antes de crear, verificar existencia antes de actualizar, etc. | Clases de casos de uso. Lógica de negocio como validaciones de reglas, flujos multi-paso |
 
 > **Ejemplo real en el proyecto**: Antes de crear un usuario, `UserApplication` llama a `getUserByEmail` para verificar que el email no esté registrado. Esta es una **regla de negocio**, no una validación de formato HTTP.
 
@@ -113,62 +113,62 @@ Es la capa más externa. Aquí vive todo lo que depende de tecnologías concreta
 
 #### 📁 `adapter/`
 
-| Archivo | Qué hace | Qué debe ir aquí |
-|---|---|---|
+| Archivo            | Qué hace                                                                                                                                                                               | Qué debe ir aquí                                                                                |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `UserAdapter.ts` | **Implementa** la interface `UserPort` usando TypeORM. Convierte entre la entidad ORM (`UserEntity`) y el modelo de dominio (`User`). Es el puente entre la BD y el dominio | Clases que implementan los puertos del dominio. Un adapter por fuente de datos o servicio externo |
 
 > El adapter tiene dos métodos privados clave: `toDomain()` (convierte entidad ORM → dominio) y `toEntity()` (convierte dominio → entidad ORM). Esto garantiza que el dominio nunca vea columnas de base de datos como `id_user` o `email_user`.
 
 #### 📁 `bootstrap/`
 
-| Archivo | Qué hace | Qué debe ir aquí |
-|---|---|---|
-| `server.bootstrap.ts` | Clase `ServerBootstrap` que recibe la app de Express e inicializa el servidor HTTP en el puerto configurado | Lógica de arranque de servicios (HTTP server, conexiones iniciales, etc.) |
+| Archivo                 | Qué hace                                                                                                    | Qué debe ir aquí                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `server.bootstrap.ts` | Clase`ServerBootstrap` que recibe la app de Express e inicializa el servidor HTTP en el puerto configurado | Lógica de arranque de servicios (HTTP server, conexiones iniciales, etc.) |
 
 #### 📁 `config/`
 
-| Archivo | Qué hace | Qué debe ir aquí |
-|---|---|---|
-| `data-base.ts` | Crea el `DataSource` de TypeORM con la configuración de PostgreSQL y exporta la función `connectDB()` | Configuración de conexiones: ORM, cache, message brokers, etc. |
-| `environment-vars.ts` | Usa **Joi** para validar que todas las variables de entorno requeridas existan al iniciar la app. Si falta alguna, lanza error inmediatamente | Validación y tipado fuerte de variables de entorno. Evita errores en tiempo de ejecución |
+| Archivo                 | Qué hace                                                                                                                                          | Qué debe ir aquí                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `data-base.ts`        | Crea el`DataSource` de TypeORM con la configuración de PostgreSQL y exporta la función `connectDB()`                                         | Configuración de conexiones: ORM, cache, message brokers, etc.                            |
+| `environment-vars.ts` | Usa**Joi** para validar que todas las variables de entorno requeridas existan al iniciar la app. Si falta alguna, lanza error inmediatamente | Validación y tipado fuerte de variables de entorno. Evita errores en tiempo de ejecución |
 
 #### 📁 `controller/`
 
-| Archivo | Qué hace | Qué debe ir aquí |
-|---|---|---|
-| `UserController.ts` | Recibe `Request` y `Response` de Express. Llama a `UserApplication`, maneja errores HTTP y devuelve respuestas JSON | Solo lógica de transporte HTTP: parsear parámetros, manejar status codes, formatear respuestas |
+| Archivo               | Qué hace                                                                                                                | Qué debe ir aquí                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `UserController.ts` | Recibe`Request` y `Response` de Express. Llama a `UserApplication`, maneja errores HTTP y devuelve respuestas JSON | Solo lógica de transporte HTTP: parsear parámetros, manejar status codes, formatear respuestas |
 
 > El controller **no contiene lógica de negocio**. Si hay un error de email duplicado, lo lanza `UserApplication`; el controller solo lo captura y lo convierte en un `HTTP 500` o `400`.
 
 #### 📁 `entities/`
 
-| Archivo | Qué hace | Qué debe ir aquí |
-|---|---|---|
-| `User.ts` | Clase decorada con `@Entity`, `@Column`, `@PrimaryGeneratedColumn` de TypeORM. Mapea directamente a la tabla `users` en PostgreSQL con columnas `id_user`, `name_user`, `email_user`, `password_user`, `status_user` | Entidades ORM con decoradores. Una entidad por tabla de base de datos |
+| Archivo     | Qué hace                                                                                                                                                                                                                             | Qué debe ir aquí                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `User.ts` | Clase decorada con`@Entity`, `@Column`, `@PrimaryGeneratedColumn` de TypeORM. Mapea directamente a la tabla `users` en PostgreSQL con columnas `id_user`, `name_user`, `email_user`, `password_user`, `status_user` | Entidades ORM con decoradores. Una entidad por tabla de base de datos |
 
 > Esta entidad es **diferente** del `User` del dominio. Usa nombres de columna de BD (`name_user`) mientras que el dominio usa nombres limpios (`name`). El `UserAdapter` hace la traducción.
 
 #### 📁 `routes/`
 
-| Archivo | Qué hace | Qué debe ir aquí |
-|---|---|---|
+| Archivo           | Qué hace                                                                                                                                                                                      | Qué debe ir aquí                                                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `UserRoutes.ts` | Define las rutas Express (`POST /users`, `GET /users`, etc.) y hace la **inyección de dependencias manual**: instancia `UserAdapter` → `UserApplication` → `UserController` | Definición de rutas + composición (wiring) de capas. Es el único lugar donde se ensamblan las piezas |
 
 > Este es el punto de composición: `new UserAdapter()` → `new UserApplication(adapter)` → `new UserController(app)`. Así se conectan las capas sin acoplarse entre ellas.
 
 #### 📁 `util/`
 
-| Archivo | Qué hace | Qué debe ir aquí |
-|---|---|---|
-| `user_validation.ts` | Valida y parsea el body de la petición para crear usuario usando **Joi** | Validaciones de entrada HTTP (formato, campos requeridos, tipos) |
-| `user-update-validation.ts` | Valida el body de actualización parcial (`Partial<User>`) | Validaciones para operaciones parciales |
-| `email-validation.ts` | Valida que el email en los params de la URL tenga formato correcto | Validaciones de parámetros de ruta o query |
+| Archivo                       | Qué hace                                                                      | Qué debe ir aquí                                               |
+| ----------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `user_validation.ts`        | Valida y parsea el body de la petición para crear usuario usando**Joi** | Validaciones de entrada HTTP (formato, campos requeridos, tipos) |
+| `user-update-validation.ts` | Valida el body de actualización parcial (`Partial<User>`)                   | Validaciones para operaciones parciales                          |
+| `email-validation.ts`       | Valida que el email en los params de la URL tenga formato correcto             | Validaciones de parámetros de ruta o query                      |
 
 #### 📁 `web/`
 
-| Archivo | Qué hace | Qué debe ir aquí |
-|---|---|---|
-| `app.ts` | Clase `App` que instancia Express, registra middlewares (`express.json()`) y conecta las rutas bajo el prefijo `/api` | Configuración central de Express: middlewares globales, prefijos, CORS, etc. |
+| Archivo    | Qué hace                                                                                                                  | Qué debe ir aquí                                                            |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `app.ts` | Clase`App` que instancia Express, registra middlewares (`express.json()`) y conecta las rutas bajo el prefijo `/api` | Configuración central de Express: middlewares globales, prefijos, CORS, etc. |
 
 ---
 
@@ -210,12 +210,12 @@ Cliente HTTP (Postman / Frontend)
 
 Antes de correr el proyecto, necesitas tener instalado:
 
-| Herramienta | Versión recomendada | Descarga |
-|---|---|---|
-| **Node.js** | v20 LTS o superior | https://nodejs.org |
-| **npm** | Incluido con Node.js | — |
-| **PostgreSQL** | v14 o superior | https://www.postgresql.org/download |
-| **Git** | Cualquier versión reciente | https://git-scm.com |
+| Herramienta          | Versión recomendada        | Descarga                            |
+| -------------------- | --------------------------- | ----------------------------------- |
+| **Node.js**    | v20 LTS o superior          | https://nodejs.org                  |
+| **npm**        | Incluido con Node.js        | —                                  |
+| **PostgreSQL** | v14 o superior              | https://www.postgresql.org/download |
+| **Git**        | Cualquier versión reciente | https://git-scm.com                 |
 
 ---
 
@@ -283,41 +283,295 @@ npm run start
 
 ---
 
-## 📡 Endpoints de la API
+## 📡 Endpoints de la API (Guía Completa para Postman)
 
-Base URL: `http://localhost:3000/api`
+Base URL: `http://localhost:4000/api`
 
-| Método | Ruta | Descripción | Body |
-|---|---|---|---|
-| `POST` | `/users` | Crear un nuevo usuario | `{ name, email, password, status }` |
-| `GET` | `/users` | Obtener todos los usuarios activos | — |
-| `GET` | `/users/email/:email` | Buscar usuario por email | — |
-| `GET` | `/users/:id` | Obtener usuario por ID | — |
-| `PUT` | `/users/:id` | Actualizar usuario parcialmente | `{ name?, email?, password?, status? }` |
-| `DELETE` | `/users/:id` | Baja lógica del usuario (status → 0) | — |
+> 💡 **Nota de inicio:** Como la base de datos empieza desde cero, ejecuta las peticiones en el orden numérico indicado abajo. Las rutas privadas requieren el encabezado `Authorization: Bearer <tu_token>`.
 
-### Ejemplo de request — Crear usuario
+---
+
+### 1. 🛡️ Crear Rol de Administrador
+
+* **Método:** `POST`
+* **Ruta:** `/roles`
+* **Acceso:** Público
+* **Headers:** `Content-Type: application/json`
+* **Body:**
 
 ```json
-POST /api/users
-Content-Type: application/json
-
 {
-  "name": "Juan Pérez",
-  "email": "juan@example.com",
-  "password": "miPassword123",
+  "name": "ADMIN",
+  "description": "Administrador con control total del sistema"
+}
+```
+
+* **Respuesta (`201 Created`):**
+
+```json
+{
+  "roleId": 1,
+  "name": "ADMIN",
+  "description": "Administrador con control total del sistema",
   "status": 1
 }
 ```
 
-### Ejemplo de response exitoso
+---
+
+### 2. 🎓 Crear Rol de Estudiante / Usuario
+
+* **Método:** `POST`
+* **Ruta:** `/roles`
+* **Acceso:** Público
+* **Headers:** `Content-Type: application/json`
+* **Body:**
 
 ```json
-HTTP 201 Created
-
 {
-  "message": "Usuario creado con exito",
+  "name": "STUDENT",
+  "description": "Usuario encuestado"
+}
+```
+
+* **Respuesta (`201 Created`):**
+
+```json
+{
+  "roleId": 2,
+  "name": "STUDENT",
+  "description": "Usuario encuestado",
+  "status": 1
+}
+```
+
+---
+
+### 3. 👥 Listar Roles Disponibles
+
+* **Método:** `GET`
+* **Ruta:** `/roles`
+* **Acceso:** Público
+* **Respuesta (`200 OK`):**
+
+```json
+[
+  { "roleId": 1, "name": "ADMIN", "description": "Administrador...", "status": 1 },
+  { "roleId": 2, "name": "STUDENT", "description": "Usuario encuestado", "status": 1 }
+]
+```
+
+---
+
+### 4. 📝 Registro de Usuario Administrador (ID: 1)
+
+* **Método:** `POST`
+* **Ruta:** `/users`
+* **Acceso:** Público
+* **Headers:** `Content-Type: application/json`
+* **Body:**
+
+```json
+{
+  "name": "Ana Silva",
+  "email": "ana.silva@correo.com",
+  "password": "Password123",
+  "roleId": 1,
+  "status": 1
+}
+```
+
+* **Respuesta (`201 Created`):**
+
+```json
+{
+  "message": "Usuario creado con éxito",
   "userId": 1
+}
+```
+
+---
+
+### 5. 📝 Registro de Segundo Usuario - Estudiante (ID: 2)
+
+* **Método:** `POST`
+* **Ruta:** `/users`
+* **Acceso:** Público
+* **Headers:** `Content-Type: application/json`
+* **Body:**
+
+```json
+{
+  "name": "David Martinez",
+  "email": "david.martinez@correo.com",
+  "password": "Password123",
+  "roleId": 2,
+  "status": 1
+}
+```
+
+* **Respuesta (`201 Created`):**
+
+```json
+{
+  "message": "Usuario creado con éxito",
+  "userId": 2
+}
+```
+
+---
+
+### 6. 🔑 Inicio de Sesión / Login (Obtención de Token JWT)
+
+* **Método:** `POST`
+* **Ruta:** `/users/login`
+* **Acceso:** Público
+* **Headers:** `Content-Type: application/json`
+* **Body:**
+
+```json
+{
+  "email": "ana.silva@correo.com",
+  "password": "Password123"
+}
+```
+
+* **Respuesta (`200 OK`):**
+
+```json
+{
+  "message": "Inicio de sesión exitoso",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 1,
+    "name": "Ana Silva",
+    "email": "ana.silva@correo.com",
+    "status": 1,
+    "roleId": 1
+  }
+}
+```
+
+> 📋 **Copia el valor de `token`** para usarlo en la pestaña `Authorization` > `Bearer Token` de las siguientes peticiones.
+
+---
+
+### 7. 🔍 Consultar Usuario por ID
+
+* **Método:** `GET`
+* **Ruta:** `/users/1`
+* **Acceso:** Protegido (`Bearer Token`)
+* **Respuesta (`200 OK`):**
+
+```json
+{
+  "id": 1,
+  "name": "Ana Silva",
+  "email": "ana.silva@correo.com",
+  "status": 1,
+  "roleId": 1
+}
+```
+
+---
+
+### 8. 📧 Consultar Usuario por Email
+
+* **Método:** `GET`
+* **Ruta:** `/users/email/david.martinez@correo.com`
+* **Acceso:** Protegido (`Bearer Token`)
+* **Respuesta (`200 OK`):**
+
+```json
+{
+  "id": 2,
+  "name": "David Martinez",
+  "email": "david.martinez@correo.com",
+  "status": 1,
+  "roleId": 2
+}
+```
+
+---
+
+### 9. 📋 Listar Todos los Usuarios Activos
+
+* **Método:** `GET`
+* **Ruta:** `/users`
+* **Acceso:** Protegido (`Bearer Token`)
+* **Parámetros Opcionales:** `?includeInactive=true` (para incluir usuarios con status 0)
+* **Respuesta (`200 OK`):**
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Ana Silva",
+    "email": "ana.silva@correo.com",
+    "status": 1,
+    "roleId": 1
+  },
+  {
+    "id": 2,
+    "name": "David Martinez",
+    "email": "david.martinez@correo.com",
+    "status": 1,
+    "roleId": 2
+  }
+]
+```
+
+---
+
+### 10. ✏️ Actualizar Datos de Usuario
+
+* **Método:** `PUT` (o `PATCH`)
+* **Ruta:** `/users/2`
+* **Acceso:** Protegido (`Bearer Token`)
+* **Headers:** `Content-Type: application/json`
+* **Body:**
+
+```json
+{
+  "name": "David Martinez Castro"
+}
+```
+
+* **Respuesta (`200 OK`):**
+
+```json
+{
+  "message": "Usuario actualizado con éxito"
+}
+```
+
+---
+
+### 11. 🚫 Baja Lógica de Usuario (Inactivar)
+
+* **Método:** `DELETE` (o `PATCH /users/:id/deactivate`)
+* **Ruta:** `/users/2`
+* **Acceso:** Protegido (`Bearer Token` + Rol ADMIN `1`)
+* **Respuesta (`200 OK`):**
+
+```json
+{
+  "message": "Usuario dado de baja lógicamente con éxito (status: 0 - INACTIVO)"
+}
+```
+
+---
+
+### 12. 🔄 Reactivar Usuario Inactivo
+
+* **Método:** `PATCH`
+* **Ruta:** `/users/2/activate`
+* **Acceso:** Protegido (`Bearer Token` + Rol ADMIN `1`)
+* **Respuesta (`200 OK`):**
+
+```json
+{
+  "message": "Usuario reactivado correctamente (status: 1 - ACTIVO)"
 }
 ```
 
@@ -327,22 +581,22 @@ HTTP 201 Created
 
 ### Producción
 
-| Paquete | Versión | Para qué sirve |
-|---|---|---|
-| `express` | ^5.2.1 | Framework HTTP para crear la API REST |
-| `dotenv` | ^17.4.2 | Carga variables de entorno desde `.env` |
-| `joi` | ^18.2.3 | Validación de esquemas (body, env vars) |
-| `pg` | ^8.23.0 | Driver de PostgreSQL para Node.js (requerido por TypeORM) |
+| Paquete     | Versión | Para qué sirve                                           |
+| ----------- | -------- | --------------------------------------------------------- |
+| `express` | ^5.2.1   | Framework HTTP para crear la API REST                     |
+| `dotenv`  | ^17.4.2  | Carga variables de entorno desde`.env`                  |
+| `joi`     | ^18.2.3  | Validación de esquemas (body, env vars)                  |
+| `pg`      | ^8.23.0  | Driver de PostgreSQL para Node.js (requerido por TypeORM) |
 
 ### Desarrollo
 
-| Paquete | Versión | Para qué sirve |
-|---|---|---|
-| `typescript` | ^7.0.2 | Compilador de TypeScript |
-| `tsx` | ^4.23.1 | Ejecuta TypeScript directamente sin compilar (usado en `npm run dev`) |
-| `ts-node` | ^10.9.2 | Alternativa a tsx para ejecutar TS |
-| `nodemon` | ^3.1.14 | Reinicia automáticamente el servidor al detectar cambios |
-| `@types/express` | ^5.0.6 | Tipos de TypeScript para Express |
+| Paquete            | Versión | Para qué sirve                                                        |
+| ------------------ | -------- | ---------------------------------------------------------------------- |
+| `typescript`     | ^7.0.2   | Compilador de TypeScript                                               |
+| `tsx`            | ^4.23.1  | Ejecuta TypeScript directamente sin compilar (usado en`npm run dev`) |
+| `ts-node`        | ^10.9.2  | Alternativa a tsx para ejecutar TS                                     |
+| `nodemon`        | ^3.1.14  | Reinicia automáticamente el servidor al detectar cambios              |
+| `@types/express` | ^5.0.6   | Tipos de TypeScript para Express                                       |
 
 ---
 
@@ -359,15 +613,16 @@ npm run start    # Ejecuta la versión compilada desde /dist
 ## 🗄️ Modelo de Base de Datos
 
 ### Schema: `users`
+
 ### Tabla: `users`
 
-| Columna | Tipo | Restricciones | Descripción |
-|---|---|---|---|
-| `id_user` | `INTEGER` | PK, AUTO_INCREMENT | Identificador único |
-| `name_user` | `VARCHAR(255)` | NOT NULL | Nombre completo |
-| `email_user` | `VARCHAR(255)` | NOT NULL, UNIQUE | Email (único) |
-| `password_user` | `VARCHAR(255)` | NOT NULL | Contraseña |
-| `status_user` | `INTEGER` | DEFAULT 1 | 1 = activo, 0 = baja lógica |
+| Columna           | Tipo             | Restricciones      | Descripción                 |
+| ----------------- | ---------------- | ------------------ | ---------------------------- |
+| `id_user`       | `INTEGER`      | PK, AUTO_INCREMENT | Identificador único         |
+| `name_user`     | `VARCHAR(255)` | NOT NULL           | Nombre completo              |
+| `email_user`    | `VARCHAR(255)` | NOT NULL, UNIQUE   | Email (único)               |
+| `password_user` | `VARCHAR(255)` | NOT NULL           | Contraseña                  |
+| `status_user`   | `INTEGER`      | DEFAULT 1          | 1 = activo, 0 = baja lógica |
 
 > El proyecto implementa **baja lógica**: los usuarios nunca se eliminan físicamente, solo se cambia `status_user` a `0`.
 
@@ -375,14 +630,14 @@ npm run start    # Ejecuta la versión compilada desde /dist
 
 ## 🔒 Variables de Entorno Requeridas
 
-| Variable | Tipo | Requerida | Default | Descripción |
-|---|---|---|---|---|
-| `PORT` | number | ✅ | — | Puerto donde corre el servidor |
-| `DB_HOST` | string | ✅ | — | Host de PostgreSQL |
-| `DB_PORT` | number | ❌ | `5432` | Puerto de PostgreSQL |
-| `DB_USER` | string | ✅ | — | Usuario de la BD |
-| `DB_PASSWORD` | string | ❌ | `""` | Contraseña de la BD |
-| `DB_NAME` | string | ✅ | — | Nombre de la base de datos |
+| Variable        | Tipo   | Requerida | Default  | Descripción                   |
+| --------------- | ------ | --------- | -------- | ------------------------------ |
+| `PORT`        | number | ✅        | —       | Puerto donde corre el servidor |
+| `DB_HOST`     | string | ✅        | —       | Host de PostgreSQL             |
+| `DB_PORT`     | number | ❌        | `5432` | Puerto de PostgreSQL           |
+| `DB_USER`     | string | ✅        | —       | Usuario de la BD               |
+| `DB_PASSWORD` | string | ❌        | `""`   | Contraseña de la BD           |
+| `DB_NAME`     | string | ✅        | —       | Nombre de la base de datos     |
 
 La validación de estas variables se realiza con **Joi** al iniciar la aplicación en [`environment-vars.ts`](src/infraestrucure/config/environment-vars.ts). Si falta alguna variable requerida, la app no arranca y muestra el error específico.
 
@@ -404,5 +659,5 @@ Si quisieras agregar, por ejemplo, el módulo de **Encuestas**, deberías seguir
 
 ## 👤 Autor
 
-**Malory Farfan**  
+**Malory Farfan**
 Proyecto Backend — Arquitectura Hexagonal con Node.js + TypeScript
