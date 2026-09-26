@@ -24,4 +24,7 @@ router.patch('/surveys/:id/activate', surveyController.activate);
 router.patch('/surveys/:id/deactivate', surveyController.deactivate);
 router.delete('/surveys/:id', surveyController.delete);
 
+// Endpoint para validar el QR y cargar la encuesta
+router.get('/qr/:surveyId', surveyController.getSurveyByQR.bind(surveyController));
+
 export const SurveyRoutes = router;

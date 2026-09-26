@@ -111,4 +111,22 @@ export class SurveyApplication {
   async deleteSurvey(id: number): Promise<boolean> {
     return await this.deactivateSurvey(id);
   }
+
+  /**
+   * Obtiene la encuesta escaneada por el usuario siempre y cuando
+   * exista y se encuentre en estado activa/publicada.
+   */
+  async getSurveyForAnswering(survey_id: number) {
+    const survey = await this.surveyPort.findById(survey_id);
+
+    if (!survey) {
+      throw new Error('NOT_FOUND: La encuesta no existe.');
+    }
+    // Validación de negocio: solo encuestas activas (ejemplo: status 1 o 'PUBLICADA')
+    if (survey.status !== 1) {
+      throw new Error('FORBIDDEN: La encuesta no está disponible para ser respondida.');
+    }
+    // Retorna la encuesta con sus preguntas
+    return survey;
+  }
 }

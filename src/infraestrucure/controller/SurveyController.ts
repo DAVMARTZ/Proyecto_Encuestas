@@ -154,4 +154,36 @@ export class SurveyController {
       qrString: JSON.stringify(qrData)
     });
   }
+  /**
+   * GET /api/surveys/qr/:surveyId
+   * Endpoint consumido por el usuario tras escanear el QR
+   * Maneja la petición cuando la app móvil envía el surveyId extraído del QR
+   */
+  async getSurveyByQR(req: Request, res: Response) {
+    try {
+      const { surveyId } = req.params;
+
+      if (!surveyId) {
+        return res.status(400).json({ 
+          error: 'El ID de la encuesta es requerido.' 
+        });
+      }
+
+      const survey = await this.surveyApp.getSurveyForAnswering(surveyId);
+
+      return res.status(200).json({
+        success: true,
+        data: survey
+      });
+    } catch (error: any) {
+      if (error.message.startsWith('NOT_FOUND')) {
+        return res.status(404).json({ error: error.message.replace('NOT_FOUND: ', '') });
+      }
+      if (error.message.startsWith('FORBIDDEN')) {
+        return res.status(403).json({ error: error.message.replace('FORBIDDEN: ', '') });
+      }
+
+      return res.status(500).json({ error: 'Error al consultar la encuesta escaneada.' });
+    }
+  }
 }
