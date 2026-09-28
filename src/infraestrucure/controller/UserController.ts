@@ -4,6 +4,8 @@ import { loadUpdateUserData } from "../util/user-update-validation";
 import { loadEmail } from "../util/email-validation";
 import { UserApplication } from "../../application/UserApplication";
 import { User } from "../../domain/User";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
 export class UserController {
     private app: UserApplication;
@@ -12,25 +14,59 @@ export class UserController {
         this.app = application;
     }
 
-    async login(req: Request, res: Response): Promise<Response> {
+    async loginUser(req: Request, res: Response): Promise<Response> {
         try {
             const { email, password } = req.body;
+
+            // 1. Validar que vengan los campos requeridos
             if (!email || !password) {
-                return res.status(400).json({ error: "Email y contraseña son requeridos" });
+                return res.status(400).json({ error: "El correo y la contraseña son obligatorios" });
             }
 
-            const result = await this.app.login(email, password);
+            // 2. Traer el usuario desde la capa de aplicación/dominio
+            const user = await this.app.getUserByEmail(email);
+            if (!user) {
+                return res.status(401).json({ error: "Credenciales inválidas" });
+            }
+
+            // 3. Comparar la contraseña ingresada contra el hash mapeado en el dominio (user.password)
+            const isMatch = await bcrypt.compare(password, user.password);
+            if (!isMatch) {
+                return res.status(401).json({ error: "Credenciales inválidas" });
+            }
+
+            // 4. Generar el JWT incluyendo la propiedad del rol
+            const secretKey = process.env.JWT_SECRET || 'mi_clave_secreta_desarrollo_123';
+            const token = jwt.sign(
+                {
+                    id: user.id,
+                    email: user.email,
+                    role: user.roleId || user.roleId // Usamos el nombre que tenga en tu entidad
+                },
+                secretKey,
+                { expiresIn: '2h' }
+            );
+
+            // 5. Excluir la contraseña sensible antes de retornar los datos al frontend
+            const { password: pwd, ...userWithoutPassword } = user;
+
+            // Agrega este console.log para ver exactamente cómo se llaman las propiedades en tu consola
+            console.log("USUARIO EN LOGUEO:", userWithoutPassword);
+
             return res.status(200).json({
                 message: "Inicio de sesión exitoso",
-                token: result.token,
-                user: result.user
+                token: token,
+                user: userWithoutPassword
             });
+
+
         } catch (error) {
+            console.error("ERROR REAL DEL LOGIN:", error);
             if (error instanceof Error) {
-                if (error.message.includes("inactivo")) {
-                    return res.status(403).json({ error: error.message });
-                }
-                return res.status(401).json({ error: error.message });
+                return res.status(500).json({
+                    error: "Error al procesar el inicio de sesión",
+                    details: error.message,
+                });
             }
             return res.status(500).json({ error: "Error interno del servidor" });
         }
@@ -38,11 +74,10 @@ export class UserController {
 
     async createUser(req: Request, res: Response): Promise<Response> {
         try {
-            const data = loadUserData(req.body);
-            const user: Omit<User, "id"> = {
-                ...data,
-                status: data.status !== undefined ? Number(data.status) : (data.statusUser !== undefined ? Number(data.statusUser) : 1)
-            };
+            //Validar los datos de entrada
+            const { name, email, password, status } = loadUserData(req.body);
+            // El hash de la contraseña lo hace UserApplication.createUser
+            const user: Omit<User, "id"> = { name, email, password, status: status ?? 1 };
             const userId = await this.app.createUser(user);
 
             return res
@@ -66,7 +101,8 @@ export class UserController {
 
     async updateUser(req: Request, res: Response): Promise<Response> {
         try {
-            const id = parseInt(req.params.id, 10);
+            const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const id = parseInt(rawId ?? "", 10);
             if (isNaN(id) || id <= 0) {
                 return res.status(400).json({ error: 'ID inválido. Debe ser un entero positivo.' });
             }
@@ -88,7 +124,8 @@ export class UserController {
 
     async getUserById(req: Request, res: Response): Promise<Response> {
         try {
-            const id = parseInt(req.params.id, 10);
+            const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const id = parseInt(rawId ?? "", 10);
             if (isNaN(id) || id <= 0) {
                 return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
             }
@@ -151,7 +188,8 @@ export class UserController {
      */
     async deleteUser(req: Request, res: Response): Promise<Response> {
         try {
-            const id = parseInt(req.params.id, 10);
+            const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const id = parseInt(rawId ?? "", 10);
             if (isNaN(id) || id <= 0) {
                 return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
             }
@@ -178,7 +216,8 @@ export class UserController {
      */
     async deactivateUser(req: Request, res: Response): Promise<Response> {
         try {
-            const id = parseInt(req.params.id, 10);
+            const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const id = parseInt(rawId ?? "", 10);
             if (isNaN(id) || id <= 0) {
                 return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
             }
@@ -199,7 +238,8 @@ export class UserController {
      */
     async activateUser(req: Request, res: Response): Promise<Response> {
         try {
-            const id = parseInt(req.params.id, 10);
+            const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+            const id = parseInt(rawId ?? "", 10);
             if (isNaN(id) || id <= 0) {
                 return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
             }

@@ -33,11 +33,14 @@ export class SurveyResponseController {
         message: 'Respuestas enviadas y guardadas con éxito',
         surveyResponseId: responseId,
       });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
-    }
-  };
-
+      } catch (error: any) {
+  const code = error?.code ?? error?.driverError?.code;
+  if (code === '23505' || String(error?.message).includes('duplicate key')) {
+    res.status(409).json({ error: 'Ya respondiste esta encuesta. Solo se permite un intento.' });
+    return;
+  }
+  res.status(400).json({ error: error.message });
+}}
   /**
    * Obtiene todos los resultados detallados de una encuesta.
    */

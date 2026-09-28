@@ -26,9 +26,9 @@ export class SurveyApplication {
   /**
    * Recupera las encuestas.
    */
-  async getAllSurveys(includeInactive: boolean = false): Promise<Survey[]> {
-    return await this.surveyPort.findAll(includeInactive);
-  }
+  async getAllSurveys(includeInactive: boolean = false, userId?: number): Promise<Survey[]> {
+  return await this.surveyPort.findAll(includeInactive, userId);
+}
 
   /**
    * Busca una encuesta por su ID numérico.

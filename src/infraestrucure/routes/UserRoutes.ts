@@ -27,7 +27,7 @@ router.post("/users", async (req, res) => {
 // Inicio de sesión (Login)
 router.post("/users/login", async (req, res) => {
     try {
-        await userController.login(req, res);
+        await userController.loginUser(req, res);
     } catch (error) {
         res.status(500).json({ message: "Error en la autenticación de usuario", error });
     }
@@ -106,6 +106,14 @@ router.patch("/users/:id/activate", authenticateToken, authorizeRole(1), async (
         await userController.activateUser(req, res);
     } catch (error) {
         res.status(500).json({ message: "Error al reactivar usuario", error });
+    }
+});
+
+router.post("/login", async (req, res) => {
+    try {
+        await userController.loginUser(req, res);
+    } catch (error) {
+        res.status(500).json({ message: "Error en el inicio de sesión", error });
     }
 });
 

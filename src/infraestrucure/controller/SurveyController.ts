@@ -16,6 +16,7 @@ export class SurveyController {
         description: req.body.description,
         closeDate: req.body.closeDate,
         userId,
+        questions: req.body.questions,
       });
 
       res.status(201).json({
@@ -33,7 +34,8 @@ export class SurveyController {
   getAll = async (req: Request, res: Response): Promise<void> => {
     try {
       const includeInactive = req.query.includeInactive === 'true';
-      const surveys = await this.surveyApp.getAllSurveys(includeInactive);
+      const userId = req.query.userId ? Number(req.query.userId) : undefined;
+      const surveys = await this.surveyApp.getAllSurveys(includeInactive, userId);
       res.status(200).json(surveys);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
