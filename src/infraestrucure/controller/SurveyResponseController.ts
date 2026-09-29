@@ -58,4 +58,33 @@ export class SurveyResponseController {
       res.status(500).json({ error: error.message });
     }
   };
+
+  getStudentsBySurvey = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const surveyId = parseInt(req.params.surveyId, 10);
+      if (isNaN(surveyId) || surveyId <= 0) {
+        res.status(400).json({ error: 'ID de encuesta inválido.' });
+        return;
+      }
+      const students = await (this.responseApp as any).getStudentsBySurvey(surveyId);
+      res.status(200).json(students);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+  getStudentAnswers = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const surveyId = parseInt(req.params.surveyId, 10);
+      const studentId = parseInt(req.params.studentId, 10);
+      if (isNaN(surveyId) || isNaN(studentId)) {
+        res.status(400).json({ error: 'IDs inválidos.' });
+        return;
+      }
+      const answers = await (this.responseApp as any).getStudentAnswers(surveyId, studentId);
+      res.status(200).json(answers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  };
 }

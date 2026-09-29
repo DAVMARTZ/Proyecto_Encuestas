@@ -117,4 +117,20 @@ router.post("/login", async (req, res) => {
     }
 });
 
+router.post("/forgot-password", async (req, res) => {
+    try {
+        await userController.sendRecoveryEmail(req, res);
+    } catch (error) {
+        res.status(500).json({ message: "Error al procesar la recuperación", error });
+    }
+});
+
+router.post("/reset-password", async (req, res) => {
+    try {
+        await userController.resetPassword(req, res);
+    } catch (error) {
+        res.status(500).json({ message: "Error al restablecer la contraseña", error });
+    }
+});
+
 export default router;

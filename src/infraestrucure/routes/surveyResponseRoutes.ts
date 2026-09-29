@@ -21,4 +21,19 @@ router.get(
   responseController.getResults
 );
 
+
+// ------------------------
+router.get(
+  '/surveys/:surveyId/estudiantes',
+  responseController.getStudentsBySurvey
+);
+
+router.get(
+  '/surveys/:surveyId/estudiantes/:studentId/respuestas',
+  responseController.getStudentAnswers
+);
+
+
+
+
 export const SurveyResponseRoutes = router;

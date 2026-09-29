@@ -28,4 +28,15 @@ export class SurveyResponseApplication {
     
     return await this.responsePort.getResponsesBySurvey(surveyId);
   }
+
+  async getStudentsBySurvey(surveyId: number): Promise<any[]> {
+    if (!surveyId) throw new Error('El ID de la encuesta es requerido.');
+    // Si tu puerto no tiene tipado estricto aún, asegúrate de llamarlo o castearlo (ej. (this.responsePort as any).getStudentsBySurvey)
+    return await (this.responsePort as any).getStudentsBySurvey(surveyId);
+  }
+
+  async getStudentAnswers(surveyId: number, studentId: number): Promise<any[]> {
+    if (!surveyId || !studentId) throw new Error('IDs requeridos.');
+    return await (this.responsePort as any).getStudentAnswers(surveyId, studentId);
+  }
 }

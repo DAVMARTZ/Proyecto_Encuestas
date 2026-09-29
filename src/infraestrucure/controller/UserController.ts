@@ -5,7 +5,8 @@ import { loadEmail } from "../util/email-validation";
 import { UserApplication } from "../../application/UserApplication";
 import { User } from "../../domain/User";
 import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import { AuthApplication } from "../../application/AuthApplication";
+import nodemailer from "nodemailer";
 
 export class UserController {
     private app: UserApplication;
@@ -36,16 +37,12 @@ export class UserController {
             }
 
             // 4. Generar el JWT incluyendo la propiedad del rol
-            const secretKey = process.env.JWT_SECRET || 'mi_clave_secreta_desarrollo_123';
-            const token = jwt.sign(
-                {
-                    id: user.id,
-                    email: user.email,
-                    role: user.roleId || user.roleId // Usamos el nombre que tenga en tu entidad
-                },
-                secretKey,
-                { expiresIn: '2h' }
-            );
+            // 4. Generar el JWT delegando a AuthApplication y usando roleId para Angular
+            const token = AuthApplication.generateToken({
+                id: user.id,
+                email: user.email,
+                roleId: user.roleId 
+            });
 
             // 5. Excluir la contraseña sensible antes de retornar los datos al frontend
             const { password: pwd, ...userWithoutPassword } = user;
@@ -254,4 +251,80 @@ export class UserController {
             return res.status(500).json({ error: "Error al reactivar usuario" });
         }
     }
+
+
+    /**
+     * Envía el correo de recuperación con el enlace seguro
+     */
+    async sendRecoveryEmail(req: Request, res: Response): Promise<Response> {
+        try {
+            const { email } = req.body;
+ 
+            if (!email) {
+                return res.status(400).json({ error: "El correo es obligatorio." });
+            }
+ 
+            const token = await this.app.generatePasswordResetToken(email);
+ 
+            // Por seguridad, la API responde igual exista o no el correo: no revelamos
+            // si una cuenta está registrada.
+            if (!token) {
+                return res.status(200).json({
+                    message: "Si el correo está registrado, recibirás un enlace de recuperación."
+                });
+            }
+ 
+            const resetLink = `${process.env.FRONTEND_URL || "http://localhost:4200"}/reset-password?token=${token}`;
+ 
+            const transporter = nodemailer.createTransport({
+                service: "gmail",
+                auth: {
+                    user: process.env.GMAIL_USER,
+                    pass: process.env.GMAIL_APP_PASSWORD
+                }
+            });
+ 
+            const mailOptions = {
+                from: `"Encuestas UE" <${process.env.GMAIL_USER}>`,
+                to: email,
+                subject: "Recuperación de Contraseña - Encuestas UE",
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px;">
+                        <h2 style="color: #0d6efd; text-align: center;">Recuperación de Contraseña</h2>
+                        <p style="font-size: 16px; color: #333;">Solicitaste restablecer tu contraseña en la plataforma Encuestas UE.</p>
+                        <p style="font-size: 16px; color: #333;">Haz clic en el siguiente botón para cambiar tu contraseña (el enlace expira en 15 minutos):</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="${resetLink}" style="padding: 12px 24px; background-color: #0d6efd; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">Restablecer Contraseña</a>
+                        </div>
+                        <p style="font-size: 12px; color: #888; text-align: center;">Si no puedes presionar el botón, copia y pega esta dirección en tu navegador:<br>${resetLink}</p>
+                    </div>
+                `
+            };
+ 
+            await transporter.sendMail(mailOptions);
+ 
+            return res.status(200).json({
+                message: "Si el correo está registrado, recibirás un enlace de recuperación."
+            });
+ 
+        } catch (error) {
+            return res.status(500).json({ error: "Error interno al procesar el envío del correo." });
+        }
+    }
+ 
+    /**
+     * Recibe el token y la nueva contraseña para procesar el cambio
+     */
+    async resetPassword(req: Request, res: Response): Promise<Response> {
+        try {
+            const { token, newPassword } = req.body;
+            if (!token || !newPassword) return res.status(400).json({ error: "Faltan datos requeridos." });
+ 
+            await this.app.resetPassword(token, newPassword);
+            return res.status(200).json({ message: "Contraseña actualizada correctamente." });
+        } catch (error: any) {
+            return res.status(400).json({ error: error.message });
+        }
+    }
 }
+ 
