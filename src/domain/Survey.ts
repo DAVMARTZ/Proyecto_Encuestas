@@ -1,3 +1,5 @@
+import { Question } from "./Question";
+
 export type SurveyStatus = 0 | 1 | number;
 
 export interface Survey {
@@ -9,4 +11,5 @@ export interface Survey {
     createdAt?: Date;
     closeDate?: Date;
     userId: number;
+    questions?: Question[];
 }

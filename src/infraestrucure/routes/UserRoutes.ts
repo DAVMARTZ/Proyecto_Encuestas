@@ -55,6 +55,15 @@ router.get("/users/email/:email", authenticateToken, async (req, res) => {
     }
 });
 
+// Consultar perfil del usuario autenticado (Token JWT)
+router.get("/users/me", authenticateToken, async (req, res) => {
+    try {
+        await userController.getProfile(req, res);
+    } catch (error) {
+        res.status(500).json({ message: "Error al consultar perfil", error });
+    }
+});
+
 // Consultar usuario por ID
 router.get("/users/:id", authenticateToken, async (req, res) => {
     try {

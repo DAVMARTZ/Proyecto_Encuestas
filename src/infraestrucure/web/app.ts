@@ -1,9 +1,11 @@
 import express from "express";
 import cors from "cors";
 import userRoutes from "../routes/UserRoutes";
-import { SurveyRoutes } from '../routes/SurveyRoutes';
-import { SurveyResponseRoutes } from '../routes/surveyResponseRoutes';
-import roleRoutes from '../routes/RoleRoutes';
+import { SurveyRoutes } from "../routes/SurveyRoutes";
+import { SurveyResponseRoutes } from "../routes/surveyResponseRoutes";
+import roleRoutes from "../routes/RoleRoutes";
+import { QuestionRoutes } from "../routes/QuestionRoutes";
+import { ResponseOptionRoutes } from "../routes/ResponseOptionRoutes";
 
 class App {
     private app: express.Application;
@@ -16,19 +18,21 @@ class App {
 
     private middlewares(): void {
         this.app.use(cors());
-        this.app.use(express.json({ limit: '50mb' }));
-        this.app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+        this.app.use(express.json({ limit: "50mb" }));
+        this.app.use(express.urlencoded({ extended: true, limit: "50mb" }));
     }
 
     private routes(): void {
         this.app.use("/api", roleRoutes);
         this.app.use("/api", userRoutes);
-        this.app.use('/api', SurveyRoutes);
-        this.app.use('/api', SurveyResponseRoutes);
+        this.app.use("/api", SurveyRoutes);
+        this.app.use("/api", QuestionRoutes);
+        this.app.use("/api", ResponseOptionRoutes);
+        this.app.use("/api", SurveyResponseRoutes);
 
         // Ruta de salud
-        this.app.get('/api/health', (_req, res) => {
-            res.json({ status: 'UP', message: 'Backend Encuestas funcionando con TypeORM y PostgreSQL' });
+        this.app.get("/api/health", (_req, res) => {
+            res.json({ status: "UP", message: "Backend Encuestas funcionando con TypeORM y PostgreSQL" });
         });
     }
 

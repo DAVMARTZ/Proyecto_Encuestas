@@ -1,8 +1,10 @@
-import { Repository } from 'typeorm';
-import { SurveyPort } from '../../domain/SurveyPort';
-import { Survey, SurveyStatus } from '../../domain/Survey';
-import { SurveyEntity } from '../entities/Survey'; 
-import { AppDataSource } from '../config/data-base';
+import { Repository } from "typeorm";
+import { SurveyPort } from "../../domain/SurveyPort";
+import { Survey, SurveyStatus } from "../../domain/Survey";
+import { SurveyEntity } from "../entities/Survey";
+import { QuestionEntity } from "../entities/QuestionEntity";
+import { ResponseOptionEntity } from "../entities/ResponseOptionEntity";
+import { AppDataSource } from "../config/data-base";
 
 export class SurveyAdapter implements SurveyPort {
   private readonly repository: Repository<SurveyEntity>;
@@ -21,6 +23,26 @@ export class SurveyAdapter implements SurveyPort {
       createdAt: entity.createdAt,
       closeDate: entity.closeDate,
       userId: entity.userId,
+      questions: entity.questions
+        ? entity.questions.map((q) => ({
+            questionId: q.questionId,
+            questionText: q.questionText,
+            questionType: q.questionType,
+            isRequired: q.isRequired,
+            displayOrder: q.displayOrder,
+            status: q.status,
+            surveyId: q.surveyId,
+            options: q.options
+              ? q.options.map((opt) => ({
+                  optionId: opt.optionId,
+                  optionText: opt.optionText,
+                  displayOrder: opt.displayOrder,
+                  status: opt.status,
+                  questionId: opt.questionId,
+                }))
+              : [],
+          }))
+        : [],
     };
   }
 
@@ -28,28 +50,68 @@ export class SurveyAdapter implements SurveyPort {
     const entity = this.repository.create({
       title: survey.title,
       description: survey.description,
-      status: survey.status !== undefined ? Number(survey.status) : 1, 
+      status: survey.status !== undefined ? Number(survey.status) : 1,
       closeDate: survey.closeDate,
       userId: survey.userId,
     });
-    
+
+    if (survey.questions && survey.questions.length > 0) {
+      entity.questions = survey.questions.map((q) => {
+        const questionEntity = new QuestionEntity();
+        questionEntity.questionText = q.questionText;
+        questionEntity.questionType = q.questionType;
+        questionEntity.isRequired = q.isRequired;
+        questionEntity.displayOrder = q.displayOrder;
+        questionEntity.status = q.status !== undefined ? Number(q.status) : 1;
+
+        if (q.options && q.options.length > 0) {
+          questionEntity.options = q.options.map((opt) => {
+            const optEntity = new ResponseOptionEntity();
+            optEntity.optionText = opt.optionText;
+            optEntity.displayOrder = opt.displayOrder;
+            optEntity.status = opt.status !== undefined ? Number(opt.status) : 1;
+            return optEntity;
+          });
+        }
+        return questionEntity;
+      });
+    }
+
     const saved = await this.repository.save(entity);
     return saved.surveyId;
   }
 
   async findAll(includeInactive: boolean = false): Promise<Survey[]> {
+    const whereClause = includeInactive ? {} : { status: 1 };
     const entities = await this.repository.find({
-      order: { surveyId: 'ASC' }
+      where: whereClause,
+      order: { surveyId: "ASC" },
     });
-    if (!includeInactive) {
-      return entities.filter(e => e.status === 1).map((e) => this.toDomain(e));
-    }
     return entities.map((e) => this.toDomain(e));
   }
 
   async findById(id: number): Promise<Survey | null> {
-    const entity = await this.repository.findOneBy({ surveyId: id });
+    const entity = await this.repository.findOne({
+      where: { surveyId: id },
+      relations: {
+        questions: {
+          options: true,
+        },
+      },
+    });
     return entity ? this.toDomain(entity) : null;
+  }
+
+  async findByUserId(userId: number, includeInactive: boolean = false): Promise<Survey[]> {
+    const whereClause: any = { userId };
+    if (!includeInactive) {
+      whereClause.status = 1;
+    }
+    const entities = await this.repository.find({
+      where: whereClause,
+      order: { surveyId: "DESC" },
+    });
+    return entities.map((e) => this.toDomain(e));
   }
 
   async update(id: number, survey: Partial<Survey>): Promise<boolean> {

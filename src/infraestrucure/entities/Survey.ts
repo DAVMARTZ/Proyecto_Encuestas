@@ -29,6 +29,6 @@ export class SurveyEntity {
   @Column({ name: 'close_date', type: 'timestamptz', nullable: true })
   closeDate?: Date; 
 
-  @OneToMany(() => QuestionEntity, (question: QuestionEntity) => question.survey)
+  @OneToMany(() => QuestionEntity, (question: QuestionEntity) => question.survey, { cascade: true })
   questions!: QuestionEntity[];
 }

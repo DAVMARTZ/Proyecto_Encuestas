@@ -1,14 +1,17 @@
 {
   "info": {
-    "name": "Proyecto Encuestas — API Collection (Único Archivo)",
-    "description": "Colección completa y autocontenida de endpoints para el Backend oficial en `Proyecto_Encuestas`.\n- Arquitectura Hexagonal + TypeORM + PostgreSQL\n- IDs numéricos enteros autoincrementales (SERIAL / INT)\n- Compresión/descompresión de foto en BYTEA\n- Manejo de estados como bit/entero (1 = ACTIVO, 0 = INACTIVO) y baja lógica sin borrado físico\n\n⚙️ Todas las variables de entorno están integradas en esta colección.",
+    "name": "Proyecto Encuestas — API Collection Completa",
+    "description": "Colección completa y exhaustiva para el Backend en Arquitectura Hexagonal + TypeORM + PostgreSQL.\n- Módulos: Roles, Usuarios (Auth & Perfil), Encuestas, Preguntas, Opciones de Respuesta, Respuestas y Estadísticas.\n- IDs autoincrementales numéricos.\n- Baja lógica sin borrado físico (status: 1 Activo, 0 Inactivo).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl",  "value": "http://localhost:3000/api", "type": "string" },
-    { "key": "userId",   "value": "1",                         "type": "string" },
-    { "key": "roleId",   "value": "1",                         "type": "string" },
-    { "key": "surveyId", "value": "1",                         "type": "string" }
+    { "key": "baseUrl",    "value": "http://localhost:3000/api", "type": "string" },
+    { "key": "userId",     "value": "1",                         "type": "string" },
+    { "key": "roleId",     "value": "1",                         "type": "string" },
+    { "key": "surveyId",   "value": "1",                         "type": "string" },
+    { "key": "questionId", "value": "1",                         "type": "string" },
+    { "key": "optionId",   "value": "1",                         "type": "string" },
+    { "key": "token",      "value": "",                          "type": "string" }
   ],
   "item": [
     {
@@ -16,20 +19,6 @@
       "item": [
         {
           "name": "Listar todos los roles (Activos)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
-                  "const json = pm.response.json();",
-                  "if (json.length > 0) {",
-                  "  pm.collectionVariables.set('roleId', json[0].roleId.toString());",
-                  "}"
-                ]
-              }
-            }
-          ],
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/roles"
@@ -40,6 +29,13 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/roles?includeInactive=true"
+          }
+        },
+        {
+          "name": "Obtener Rol por ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/roles/{{roleId}}"
           }
         },
         {
@@ -60,7 +56,10 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
             "url": "{{baseUrl}}/roles",
             "body": {
               "mode": "raw",
@@ -69,9 +68,25 @@
           }
         },
         {
+          "name": "Actualizar rol",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/roles/{{roleId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"DOCENTE LIDER\",\n  \"description\": \"Coordinador y creador de encuestas\"\n}"
+            }
+          }
+        },
+        {
           "name": "Inactivar rol (Baja lógica)",
           "request": {
             "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/roles/{{roleId}}/deactivate"
           }
         },
@@ -79,6 +94,7 @@
           "name": "Reactivar rol",
           "request": {
             "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/roles/{{roleId}}/activate"
           }
         },
@@ -86,6 +102,7 @@
           "name": "Eliminar rol (DELETE lógico sin borrado físico)",
           "request": {
             "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/roles/{{roleId}}"
           }
         }
@@ -95,7 +112,7 @@
       "name": "👤 Usuarios",
       "item": [
         {
-          "name": "Crear Usuario con Foto en Base64 (Comprimida a BYTEA)",
+          "name": "Crear Usuario con Foto en Base64",
           "event": [
             {
               "listen": "test",
@@ -121,9 +138,44 @@
           }
         },
         {
+          "name": "Login (Iniciar Sesión y Obtener JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "if (json.token) {",
+                  "  pm.collectionVariables.set('token', json.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/users/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@encuestas.com\",\n  \"password\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Obtener Perfil Propio (GET /users/me)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/users/me"
+          }
+        },
+        {
           "name": "Obtener Todos los Usuarios (Activos)",
           "request": {
             "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/users"
           }
         },
@@ -131,13 +183,15 @@
           "name": "Obtener Todos los Usuarios (Incluye Inactivos)",
           "request": {
             "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/users?includeInactive=true"
           }
         },
         {
-          "name": "Obtener Usuario por ID (Foto descomprimida a Base64)",
+          "name": "Obtener Usuario por ID",
           "request": {
             "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/users/{{userId}}"
           }
         },
@@ -145,18 +199,22 @@
           "name": "Obtener Usuario por Email",
           "request": {
             "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/users/email/admin@encuestas.com"
           }
         },
         {
-          "name": "Actualizar Usuario (Actualizar Datos y Foto)",
+          "name": "Actualizar Usuario",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
             "url": "{{baseUrl}}/users/{{userId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Laura Morales Actualizada\",\n  \"avatarBase64\": \"data:image/jpeg;base64,/9j/4AAQSkZJRg==\"\n}"
+              "raw": "{\n  \"name\": \"Laura Morales Actualizada\"\n}"
             }
           }
         },
@@ -164,6 +222,7 @@
           "name": "Inactivar Usuario (Baja Lógica PATCH)",
           "request": {
             "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/users/{{userId}}/deactivate"
           }
         },
@@ -171,13 +230,15 @@
           "name": "Reactivar Usuario (PATCH)",
           "request": {
             "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/users/{{userId}}/activate"
           }
         },
         {
-          "name": "Eliminar Usuario (DELETE lógico sin borrado físico)",
+          "name": "Eliminar Usuario (DELETE lógico)",
           "request": {
             "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/users/{{userId}}"
           }
         }
@@ -204,7 +265,10 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
             "url": "{{baseUrl}}/surveys",
             "body": {
               "mode": "raw",
@@ -213,35 +277,39 @@
           }
         },
         {
-          "name": "Obtener Todas las Encuestas (Activas y Borradores)",
+          "name": "Obtener Todas las Encuestas (Activas)",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/surveys"
           }
         },
         {
-          "name": "Obtener Todas las Encuestas (Incluye Inactivas)",
-          "request": {
-            "method": "GET",
-            "url": "{{baseUrl}}/surveys?includeInactive=true"
-          }
-        },
-        {
-          "name": "Obtener Encuesta por ID",
+          "name": "Obtener Encuesta por ID (con preguntas y opciones)",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/surveys/{{surveyId}}"
           }
         },
         {
-          "name": "Actualizar Encuesta en Borrador",
+          "name": "Obtener Encuestas por Creador (GET /users/:userId/surveys)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/users/{{userId}}/surveys"
+          }
+        },
+        {
+          "name": "Actualizar Encuesta",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
             "url": "{{baseUrl}}/surveys/{{surveyId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Evaluación Docente Semestre 2026-2 (Modificada)\",\n  \"description\": \"Nueva descripción actualizada\",\n  \"closeDate\": \"2026-12-25T23:59:59.000Z\",\n  \"userId\": 1\n}"
+              "raw": "{\n  \"title\": \"Evaluación Docente Semestre 2026-2 (Modificada)\",\n  \"description\": \"Nueva descripción actualizada\"\n}"
             }
           }
         },
@@ -249,6 +317,7 @@
           "name": "Publicar Encuesta (Activar)",
           "request": {
             "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/surveys/{{surveyId}}/publish"
           }
         },
@@ -256,6 +325,7 @@
           "name": "Inactivar Encuesta (Baja lógica)",
           "request": {
             "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/surveys/{{surveyId}}/deactivate"
           }
         },
@@ -263,38 +333,241 @@
           "name": "Reactivar Encuesta",
           "request": {
             "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/surveys/{{surveyId}}/activate"
           }
         },
         {
-          "name": "Eliminar Encuesta (DELETE lógico sin borrado físico)",
+          "name": "Eliminar Encuesta (DELETE lógico)",
           "request": {
             "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/surveys/{{surveyId}}"
           }
         }
       ]
     },
     {
-      "name": "📝 Respuestas",
+      "name": "❓ Preguntas",
+      "item": [
+        {
+          "name": "Crear Pregunta de Selección Múltiple con Opciones",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.questionId) {",
+                  "  pm.collectionVariables.set('questionId', json.questionId.toString());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/surveys/{{surveyId}}/questions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionText\": \"¿Cómo calificaría la puntualidad del docente?\",\n  \"questionType\": \"Seleccion Multiple\",\n  \"isRequired\": true,\n  \"displayOrder\": 1,\n  \"options\": [\n    { \"optionText\": \"Excelente\", \"displayOrder\": 1 },\n    { \"optionText\": \"Bueno\", \"displayOrder\": 2 },\n    { \"optionText\": \"Regular\", \"displayOrder\": 3 },\n    { \"optionText\": \"Deficiente\", \"displayOrder\": 4 }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Crear Pregunta Abierta",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/surveys/{{surveyId}}/questions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionText\": \"¿Qué comentarios o sugerencias tiene para el docente?\",\n  \"questionType\": \"Abierta\",\n  \"isRequired\": false,\n  \"displayOrder\": 2\n}"
+            }
+          }
+        },
+        {
+          "name": "Listar Preguntas de una Encuesta",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/surveys/{{surveyId}}/questions"
+          }
+        },
+        {
+          "name": "Obtener Pregunta por ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/questions/{{questionId}}"
+          }
+        },
+        {
+          "name": "Actualizar Pregunta",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/questions/{{questionId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionText\": \"¿Cómo calificaría la puntualidad y disposición del docente?\",\n  \"isRequired\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Inactivar Pregunta (Baja lógica)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/questions/{{questionId}}/deactivate"
+          }
+        },
+        {
+          "name": "Reactivar Pregunta",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/questions/{{questionId}}/activate"
+          }
+        },
+        {
+          "name": "Eliminar Pregunta (DELETE lógico)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/questions/{{questionId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔘 Opciones de Respuesta",
+      "item": [
+        {
+          "name": "Crear Opción de Respuesta para una Pregunta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "if (json.optionId) {",
+                  "  pm.collectionVariables.set('optionId', json.optionId.toString());",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/questions/{{questionId}}/options",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"optionText\": \"No aplica / Sin opinión\",\n  \"displayOrder\": 5\n}"
+            }
+          }
+        },
+        {
+          "name": "Listar Opciones de una Pregunta",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/questions/{{questionId}}/options"
+          }
+        },
+        {
+          "name": "Obtener Opción por ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/options/{{optionId}}"
+          }
+        },
+        {
+          "name": "Actualizar Opción",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/options/{{optionId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"optionText\": \"Excelente (Destacado)\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Inactivar Opción (Baja lógica)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/options/{{optionId}}/deactivate"
+          }
+        },
+        {
+          "name": "Reactivar Opción",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/options/{{optionId}}/activate"
+          }
+        },
+        {
+          "name": "Eliminar Opción (DELETE lógico)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/options/{{optionId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "📝 Respuestas y Estadísticas",
       "item": [
         {
           "name": "Enviar Respuestas de Encuesta",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
             "url": "{{baseUrl}}/surveys/{{surveyId}}/responses",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"surveyId\": 1,\n  \"userId\": 1,\n  \"details\": [\n    {\n      \"questionId\": 1,\n      \"responseText\": \"Excelente metodología y acompañamiento del docente.\"\n    }\n  ]\n}"
+              "raw": "{\n  \"surveyId\": 1,\n  \"userId\": 1,\n  \"details\": [\n    {\n      \"questionId\": 1,\n      \"optionId\": 1\n    },\n    {\n      \"questionId\": 2,\n      \"responseText\": \"Excelente metodología pedagógica y acompañamiento continuo.\"\n    }\n  ]\n}"
             }
           }
         },
         {
-          "name": "Consultar Respuestas de la Encuesta",
+          "name": "Consultar Respuestas Detalladas de la Encuesta",
           "request": {
             "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
             "url": "{{baseUrl}}/surveys/{{surveyId}}/responses"
+          }
+        },
+        {
+          "name": "Consultar Estadísticas y Métricas Consolidadas (GET /surveys/:id/statistics)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/surveys/{{surveyId}}/statistics"
           }
         }
       ]

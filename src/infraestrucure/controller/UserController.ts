@@ -86,6 +86,26 @@ export class UserController {
         }
     }
 
+    async getProfile(req: Request, res: Response): Promise<Response> {
+        try {
+            const authUser = (req as any).user;
+            const id = authUser?.userId || authUser?.id;
+            if (!id) {
+                return res.status(401).json({ error: "Usuario no autenticado" });
+            }
+
+            const user = await this.app.getUserById(Number(id));
+            if (!user) {
+                return res.status(404).json({ error: "Usuario no encontrado" });
+            }
+
+            const { password: _, ...usuarioSinPassword } = user;
+            return res.status(200).json(usuarioSinPassword);
+        } catch (error) {
+            return res.status(500).json({ error: "Error interno del servidor" });
+        }
+    }
+
     async getUserById(req: Request, res: Response): Promise<Response> {
         try {
             const id = parseInt(req.params.id, 10);
