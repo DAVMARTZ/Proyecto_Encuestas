@@ -115,9 +115,5 @@ export class QuestionAdapter implements QuestionPort {
     const result = await this.repository.update(id, { status: 1 });
     return (result.affected ?? 0) > 0;
   }
-
-  async deleteQuestion(id: number): Promise<boolean> {
-    return await this.deactivateQuestion(id);
-  }
 }
 

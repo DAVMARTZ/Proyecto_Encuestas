@@ -12,8 +12,8 @@ export class User {
     @Column({ name: 'email', type: 'varchar', length: 255, unique: true })
     email!: string;
 
-    @Column({ name: 'password_hash', type: 'varchar', length: 255 })
-    passwordHash!: string;
+    @Column({ name: 'firebase_uid', type: 'varchar', length: 128, unique: true, nullable: true })
+    firebaseUid?: string;
 
     @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
     createdAt!: Date;

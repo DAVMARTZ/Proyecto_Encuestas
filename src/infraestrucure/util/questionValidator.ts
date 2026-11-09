@@ -2,7 +2,7 @@ import joi from "joi";
 
 export type ReturnQuestionOptionData = {
   optionText: string;
-  displayOrder: number;
+  displayOrder?: number;
   status?: number;
   questionId?: number;
 };
@@ -12,7 +12,7 @@ export type ReturnQuestionData = {
   questionText: string;
   questionType: string;
   isRequired: boolean;
-  displayOrder: number;
+  displayOrder?: number;
   status?: number;
   options?: ReturnQuestionOptionData[];
 };
@@ -28,7 +28,7 @@ export type ReturnUpdateQuestionData = Partial<{
 export type ReturnOptionData = {
   questionId: number;
   optionText: string;
-  displayOrder: number;
+  displayOrder?: number;
   status?: number;
 };
 
@@ -45,7 +45,7 @@ const optionSchema = joi.object({
     "string.max": "El texto de la opción supera los 300 caracteres permitidos.",
     "any.required": "El texto de la opción es obligatorio.",
   }),
-  displayOrder: joi.number().integer().min(1).default(1),
+  displayOrder: joi.number().integer().min(1).optional(),
   status: joi.number().valid(0, 1).optional().default(1),
   questionId: joi.number().integer().positive().optional(),
 }).unknown(true);
@@ -55,7 +55,7 @@ const questionSchema = joi.object({
     "number.base": "El ID de la encuesta debe ser un número entero.",
     "any.required": "El ID de la encuesta es obligatorio.",
   }),
-  questionText: joi.string().trim().required().messages({
+  questionText: joi.string().trim().max(500).required().messages({
     "string.empty": "El enunciado de la pregunta es obligatorio.",
     "any.required": "El enunciado de la pregunta es obligatorio.",
   }),
@@ -64,13 +64,15 @@ const questionSchema = joi.object({
     "any.required": "El tipo de pregunta es obligatorio.",
   }),
   isRequired: joi.boolean().default(true),
-  displayOrder: joi.number().integer().min(1).default(1),
+  displayOrder: joi.number().integer().min(1).optional(),
   status: joi.number().valid(0, 1).optional().default(1),
-  options: joi.array().items(optionSchema).optional(),
+  options: joi.array().items(optionSchema).max(50).unique("displayOrder", { ignoreUndefined: true }).optional().messages({
+    "array.unique": "No puede haber dos opciones con el mismo orden.",
+  }),
 }).unknown(true);
 
 const updateQuestionSchema = joi.object({
-  questionText: joi.string().trim().optional(),
+  questionText: joi.string().trim().max(500).optional(),
   questionType: joi.string().valid("Escala", "Abierta", "Seleccion Multiple").optional(),
   isRequired: joi.boolean().optional(),
   displayOrder: joi.number().integer().min(1).optional(),

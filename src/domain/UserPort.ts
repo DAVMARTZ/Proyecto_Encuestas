@@ -1,4 +1,4 @@
-import { User } from "./User";
+import { SessionUser, User } from "./User";
 
 export interface UserPort {
     createUser(user: Omit<User, "id">): Promise<number>;
@@ -9,4 +9,5 @@ export interface UserPort {
     getUserById(id: number): Promise<User | null>;
     getUserByEmail(email: string): Promise<User | null>;
     getAllUsers(includeInactive?: boolean): Promise<User[]>;
+    getSessionUserByFirebaseUid(firebaseUid: string): Promise<SessionUser | null>; // Datos mínimos para validar la sesión
 }

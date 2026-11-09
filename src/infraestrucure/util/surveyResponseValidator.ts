@@ -8,7 +8,7 @@ export type ReturnDetailData = {
 
 export type ReturnSurveyResponseData = {
   surveyId: number;
-  userId?: number;
+  userId: number;
   details: ReturnDetailData[];
 };
 
@@ -24,7 +24,9 @@ const responseDetailSchema = joi
       "any.required": "El ID de la pregunta es obligatorio.",
     }),
     optionId: joi.number().integer().positive().allow(null).optional(),
-    responseText: joi.string().allow(null, "").optional(),
+    responseText: joi.string().max(2000).allow(null, "").optional().messages({
+      "string.max": "La respuesta no puede superar los 2000 caracteres.",
+    }),
   })
   .or("optionId", "responseText");
 
@@ -34,8 +36,8 @@ const surveyResponsePayloadSchema = joi
       "number.base": "El ID de la encuesta debe ser un número entero.",
       "any.required": "El ID de la encuesta es obligatorio.",
     }),
-    userId: joi.number().integer().positive().allow(null).optional(),
-    details: joi.array().items(responseDetailSchema).min(1).required().messages({
+    userId: joi.number().integer().positive().required(),
+    details: joi.array().items(responseDetailSchema).min(1).max(500).required().messages({
       "array.min": "El envío debe contener al menos una respuesta.",
       "any.required": "Debe enviar las respuestas de la encuesta.",
     }),
@@ -54,4 +56,22 @@ export const loadSurveyResponseData = (data: any): ReturnSurveyResponseData => {
     throw new Error(message);
   }
   return result.value;
+};
+
+export type StatisticsFiltersData = {
+  from?: Date;
+  to?: Date;
+};
+
+export const loadStatisticsFilters = (query: any): StatisticsFiltersData => {
+  const schema = joi.object({
+    from: joi.date().iso().optional().messages({ "date.format": "La fecha inicial debe tener un formato ISO válido." }),
+    to: joi.date().iso().optional().messages({ "date.format": "La fecha final debe tener un formato ISO válido." }),
+  });
+
+  const { error, value } = schema.validate(query, { abortEarly: false, stripUnknown: true });
+  if (error) {
+    throw new Error(error.details.map((d) => d.message).join(", "));
+  }
+  return value;
 };

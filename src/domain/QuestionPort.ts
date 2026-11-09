@@ -7,6 +7,5 @@ export interface QuestionPort {
   updateQuestion(id: number, question: Partial<Question>): Promise<boolean>;
   deactivateQuestion(id: number): Promise<boolean>;
   activateQuestion(id: number): Promise<boolean>;
-  deleteQuestion(id: number): Promise<boolean>;
 }
 

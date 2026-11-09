@@ -5,6 +5,5 @@ export interface ResponseOption {
   optionText: string;
   displayOrder: number;
   status: ResponseOptionStatus;
-  statusResponseOption?: ResponseOptionStatus; // Compatibilidad
   questionId: number;
 }

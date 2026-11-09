@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import { loadUserData } from "../util/user_validation";
 import { loadUpdateUserData } from "../util/user-update-validation";
 import { loadEmail } from "../util/email-validation";
 import { UserApplication } from "../../application/UserApplication";
 import { User } from "../../domain/User";
+import { isAdmin } from "../web/roleMiddleware";
+import { parseId, sendError } from "../util/http-utils";
 
 export class UserController {
     private app: UserApplication;
@@ -12,66 +13,21 @@ export class UserController {
         this.app = application;
     }
 
-    async login(req: Request, res: Response): Promise<Response> {
+    updateUser = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const { email, password } = req.body;
-            if (!email || !password) {
-                return res.status(400).json({ error: "Email y contraseña son requeridos" });
-            }
-
-            const result = await this.app.login(email, password);
-            return res.status(200).json({
-                message: "Inicio de sesión exitoso",
-                token: result.token,
-                user: result.user
-            });
-        } catch (error) {
-            if (error instanceof Error) {
-                if (error.message.includes("inactivo")) {
-                    return res.status(403).json({ error: error.message });
-                }
-                return res.status(401).json({ error: error.message });
-            }
-            return res.status(500).json({ error: "Error interno del servidor" });
-        }
-    }
-
-    async createUser(req: Request, res: Response): Promise<Response> {
-        try {
-            const data = loadUserData(req.body);
-            const user: Omit<User, "id"> = {
-                ...data,
-                status: data.status !== undefined ? Number(data.status) : (data.statusUser !== undefined ? Number(data.statusUser) : 1)
-            };
-            const userId = await this.app.createUser(user);
-
-            return res
-                .status(201)
-                .json({ message: "Usuario creado con éxito", userId });
-        } catch (error) {
-            if (error instanceof Error) {
-                if (error.message.includes("ya está registrado")) {
-                    return res.status(409).json({ error: error.message });
-                }
-                return res
-                    .status(400)
-                    .json({
-                        error: "Error en validación o datos",
-                        details: error.message,
-                    });
-            }
-            return res.status(500).json({ error: "Error interno del servidor" });
-        }
-    }
-
-    async updateUser(req: Request, res: Response): Promise<Response> {
-        try {
-            const id = parseInt(req.params.id, 10);
-            if (isNaN(id) || id <= 0) {
+            const id = parseId(req.params.id);
+            if (id === null) {
                 return res.status(400).json({ error: 'ID inválido. Debe ser un entero positivo.' });
             }
 
             const dataLoad = loadUpdateUserData(req.body);
+
+            // Solo un administrador puede cambiar rol o estado, y nunca los suyos
+            if (!isAdmin(req) || (req as any).user.userId === id) {
+                delete dataLoad.roleId;
+                delete dataLoad.status;
+            }
+
             const updated = await this.app.updateUser(id, dataLoad as Partial<User>);
 
             if (!updated) {
@@ -79,14 +35,11 @@ export class UserController {
             }
             return res.status(200).json({ message: "Usuario actualizado con éxito" });
         } catch (error) {
-            if (error instanceof Error) {
-                return res.status(400).json({ error: error.message });
-            }
-            return res.status(500).json({ error: "Error interno del servidor" });
+            return sendError(res, error);
         }
-    }
+    };
 
-    async getProfile(req: Request, res: Response): Promise<Response> {
+    getProfile = async (req: Request, res: Response): Promise<Response> => {
         try {
             const authUser = (req as any).user;
             const id = authUser?.userId || authUser?.id;
@@ -99,17 +52,16 @@ export class UserController {
                 return res.status(404).json({ error: "Usuario no encontrado" });
             }
 
-            const { password: _, ...usuarioSinPassword } = user;
-            return res.status(200).json(usuarioSinPassword);
+            return res.status(200).json(user);
         } catch (error) {
-            return res.status(500).json({ error: "Error interno del servidor" });
+            return sendError(res, error);
         }
-    }
+    };
 
-    async getUserById(req: Request, res: Response): Promise<Response> {
+    getUserById = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const id = parseInt(req.params.id, 10);
-            if (isNaN(id) || id <= 0) {
+            const id = parseId(req.params.id);
+            if (id === null) {
                 return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
             }
 
@@ -118,62 +70,50 @@ export class UserController {
                 return res.status(404).json({ error: "Usuario no encontrado" });
             }
 
-            const { password: _, ...usuarioSinPassword } = user;
-            return res.status(200).json(usuarioSinPassword);
+            return res.status(200).json(user);
         } catch (error) {
-            if (error instanceof Error) {
-                return res.status(500).json({ error: "Error interno del servidor", details: error.message });
-            }
-            return res.status(500).json({ error: "Error interno del servidor" });
+            return sendError(res, error);
         }
-    }
+    };
 
-    async getUserByEmail(req: Request, res: Response): Promise<Response> {
+    getUserByEmail = async (req: Request, res: Response): Promise<Response> => {
         try {
             const { email } = loadEmail(req.params);
             const user = await this.app.getUserByEmail(email);
 
             if (!user) {
-                return res.status(404).json({ message: "Usuario no encontrado" });
+                return res.status(404).json({ error: "Usuario no encontrado" });
             }
 
-            const { password: _, ...usuarioSinPassword } = user;
-            return res.status(200).json(usuarioSinPassword);
+            return res.status(200).json(user);
         } catch (error) {
-            if (error instanceof Error) {
-                return res.status(400).json({ error: error.message });
-            }
-            return res.status(500).json({
-                error: "Error interno del servidor",
-                details: error instanceof Error ? error.message : "Error desconocido",
-            });
+            return sendError(res, error);
         }
-    }
+    };
 
-    async getAllUsers(req: Request, res: Response): Promise<Response> {
+    getAllUsers = async (req: Request, res: Response): Promise<Response> => {
         try {
             const includeInactive = req.query.includeInactive === 'true';
             const users = await this.app.getAllUsers(includeInactive);
 
-            const usersSafe = users.map((user) => {
-                const { password: _, ...usuarioSinPassword } = user;
-                return usuarioSinPassword;
-            });
-
-            return res.status(200).json(usersSafe);
+            return res.status(200).json(users);
         } catch (error) {
-            return res.status(500).json({ message: "Error al obtener usuarios", error });
+            return sendError(res, error);
         }
-    }
+    };
 
     /**
      * Inactivación lógica (baja lógica vía DELETE sin borrado físico)
      */
-    async deleteUser(req: Request, res: Response): Promise<Response> {
+    deleteUser = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const id = parseInt(req.params.id, 10);
-            if (isNaN(id) || id <= 0) {
+            const id = parseId(req.params.id);
+            if (id === null) {
                 return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
+            }
+
+            if ((req as any).user.userId === id) {
+                return res.status(400).json({ error: "No puedes inactivar tu propia cuenta" });
             }
 
             const deactivated = await this.app.deleteUser(id);
@@ -183,24 +123,22 @@ export class UserController {
 
             return res.status(200).json({ message: "Usuario dado de baja lógicamente con éxito (status: 0 - INACTIVO)" });
         } catch (error) {
-            if (error instanceof Error) {
-                return res.status(500).json({
-                    error: "Error interno del servidor",
-                    details: error.message,
-                });
-            }
-            return res.status(500).json({ error: "Error interno del servidor" });
+            return sendError(res, error);
         }
-    }
+    };
 
     /**
      * Endpoint explícito para inactivar lógicamente
      */
-    async deactivateUser(req: Request, res: Response): Promise<Response> {
+    deactivateUser = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const id = parseInt(req.params.id, 10);
-            if (isNaN(id) || id <= 0) {
+            const id = parseId(req.params.id);
+            if (id === null) {
                 return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
+            }
+
+            if ((req as any).user.userId === id) {
+                return res.status(400).json({ error: "No puedes inactivar tu propia cuenta" });
             }
 
             const deactivated = await this.app.deactivateUser(id);
@@ -210,17 +148,17 @@ export class UserController {
 
             return res.status(200).json({ message: "Usuario inactivado correctamente (status: 0 - INACTIVO)" });
         } catch (error) {
-            return res.status(500).json({ error: "Error al inactivar usuario" });
+            return sendError(res, error);
         }
-    }
+    };
 
     /**
      * Endpoint explícito para reactivar lógicamente
      */
-    async activateUser(req: Request, res: Response): Promise<Response> {
+    activateUser = async (req: Request, res: Response): Promise<Response> => {
         try {
-            const id = parseInt(req.params.id, 10);
-            if (isNaN(id) || id <= 0) {
+            const id = parseId(req.params.id);
+            if (id === null) {
                 return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
             }
 
@@ -231,7 +169,7 @@ export class UserController {
 
             return res.status(200).json({ message: "Usuario reactivado correctamente (status: 1 - ACTIVO)" });
         } catch (error) {
-            return res.status(500).json({ error: "Error al reactivar usuario" });
+            return sendError(res, error);
         }
-    }
+    };
 }

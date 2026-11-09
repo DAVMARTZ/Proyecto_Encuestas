@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { RoleApplication } from "../../application/RoleApplication";
 import { loadRoleData, loadUpdateRoleData } from "../util/role-validation";
+import { parseId, sendError } from "../util/http-utils";
 
 /**
  * Controlador HTTP para Roles
@@ -26,11 +27,8 @@ export class RoleController {
         message: "Rol creado con éxito",
         roleId,
       });
-    } catch (error: any) {
-      if (error.message.includes("ya se encuentra registrado")) {
-        return res.status(409).json({ error: error.message });
-      }
-      return res.status(400).json({ error: error.message });
+    } catch (error) {
+      return sendError(res, error);
     }
   };
 
@@ -39,68 +37,65 @@ export class RoleController {
       const includeInactive = req.query.includeInactive === "true";
       const roles = await this.roleApp.getAllRoles(includeInactive);
       return res.status(200).json(roles);
-    } catch (error: any) {
-      return res.status(500).json({ error: "Error al consultar roles", details: error.message });
+    } catch (error) {
+      return sendError(res, error);
     }
   };
 
   getById = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id) || id <= 0) {
+      const id = parseId(req.params.id);
+      if (id === null) {
         return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
       }
 
       const role = await this.roleApp.getRoleById(id);
       return res.status(200).json(role);
-    } catch (error: any) {
-      return res.status(404).json({ error: error.message });
+    } catch (error) {
+      return sendError(res, error);
     }
   };
 
   update = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id) || id <= 0) {
+      const id = parseId(req.params.id);
+      if (id === null) {
         return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
       }
 
       const dataLoad = loadUpdateRoleData(req.body);
       await this.roleApp.updateRole(id, dataLoad);
       return res.status(200).json({ message: "Rol actualizado con éxito" });
-    } catch (error: any) {
-      if (error.message.includes("Ya existe otro rol")) {
-        return res.status(409).json({ error: error.message });
-      }
-      return res.status(400).json({ error: error.message });
+    } catch (error) {
+      return sendError(res, error);
     }
   };
 
   deactivate = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id) || id <= 0) {
+      const id = parseId(req.params.id);
+      if (id === null) {
         return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
       }
 
       await this.roleApp.deactivateRole(id);
       return res.status(200).json({ message: "Rol inactivado correctamente (status: 0 - INACTIVO)" });
-    } catch (error: any) {
-      return res.status(400).json({ error: error.message });
+    } catch (error) {
+      return sendError(res, error);
     }
   };
 
   activate = async (req: Request, res: Response): Promise<Response> => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id) || id <= 0) {
+      const id = parseId(req.params.id);
+      if (id === null) {
         return res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
       }
 
       await this.roleApp.activateRole(id);
       return res.status(200).json({ message: "Rol reactivado correctamente (status: 1 - ACTIVO)" });
-    } catch (error: any) {
-      return res.status(400).json({ error: error.message });
+    } catch (error) {
+      return sendError(res, error);
     }
   };
 

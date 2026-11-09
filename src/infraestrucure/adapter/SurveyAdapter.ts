@@ -19,7 +19,6 @@ export class SurveyAdapter implements SurveyPort {
       title: entity.title,
       description: entity.description,
       status: entity.status as SurveyStatus,
-      statusSurvey: entity.status as SurveyStatus,
       createdAt: entity.createdAt,
       closeDate: entity.closeDate,
       userId: entity.userId,
@@ -42,7 +41,7 @@ export class SurveyAdapter implements SurveyPort {
                 }))
               : [],
           }))
-        : [],
+        : undefined, // Los listados no cargan preguntas; el detalle está en GET /surveys/:id
     };
   }
 
@@ -85,6 +84,7 @@ export class SurveyAdapter implements SurveyPort {
     const whereClause = includeInactive ? {} : { status: 1 };
     const entities = await this.repository.find({
       where: whereClause,
+      relations: { questions: true },
       order: { surveyId: "ASC" },
     });
     return entities.map((e) => this.toDomain(e));
@@ -96,6 +96,14 @@ export class SurveyAdapter implements SurveyPort {
       relations: {
         questions: {
           options: true,
+        },
+      },
+      order: {
+        questions: {
+          displayOrder: "ASC",
+          options: {
+            displayOrder: "ASC",
+          },
         },
       },
     });

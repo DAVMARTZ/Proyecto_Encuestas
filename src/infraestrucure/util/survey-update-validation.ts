@@ -1,11 +1,10 @@
 import joi from "joi";
 
+// El estado solo cambia con publish, activate y deactivate
 export type ReturnUpdateSurveyData = Partial<{
   title: string;
   description: string;
   closeDate: Date;
-  status: number;
-  userId: number;
 }>;
 
 type ValidationUpdateSurveyData = {
@@ -20,15 +19,14 @@ function validateUpdateSurveyData(data: any): ValidationUpdateSurveyData {
         "string.empty": "El título no puede estar vacío.",
         "string.max": "El título no puede superar los 200 caracteres.",
       }),
-      description: joi.string().allow("", null).optional(),
-      closeDate: joi.date().iso().allow(null).optional().messages({
+      description: joi.string().max(1000).allow("", null).optional(),
+      closeDate: joi.date().iso().greater("now").allow(null).optional().messages({
         "date.format": "La fecha de cierre debe tener un formato ISO válido.",
+        "date.greater": "La fecha de cierre debe ser posterior a la fecha actual.",
       }),
-      status: joi.number().valid(0, 1).optional(),
-      userId: joi.number().integer().positive().optional(),
-    })
-    .unknown(true);
+    });
 
+  // stripUnknown descarta cualquier otro campo, incluido status
   const { error, value } = schema.validate(data, { abortEarly: false, stripUnknown: true });
   return { error, value };
 }
