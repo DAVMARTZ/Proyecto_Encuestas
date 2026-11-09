@@ -12,6 +12,7 @@ export interface SurveyResponse {
   surveyResponseId?: number;
   submittedAt?: Date;
   surveyId: number;
+  surveyTitle?: string;
   userId?: number;
   userName?: string;
   userEmail?: string;

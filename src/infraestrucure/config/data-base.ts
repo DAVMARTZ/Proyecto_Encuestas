@@ -1,5 +1,4 @@
 import { DataSource } from 'typeorm';
-import dotenv from "dotenv";
 import { User } from "../entities/User";
 import { RoleEntity } from "../entities/RoleEntity";
 import { SurveyEntity } from "../entities/Survey";
@@ -9,8 +8,6 @@ import { ResponseOptionEntity } from '../entities/ResponseOptionEntity';
 import { SurveyResponseEntity } from '../entities/SurveyResponseEntity';
 import { ResponseDetailEntity } from '../entities/ResponseDetailEntity';
 
-dotenv.config();
-
 export const AppDataSource = new DataSource({
     type: "postgres",
     host: envs.DB_HOST,
@@ -19,7 +16,7 @@ export const AppDataSource = new DataSource({
     password: envs.DB_PASSWORD,
     database: envs.DB_NAME,
     synchronize: false,
-    logging: true,
+    logging: false, // Las consultas incluyen datos personales y no deben ir a los logs
     entities: [
         RoleEntity,
         User,

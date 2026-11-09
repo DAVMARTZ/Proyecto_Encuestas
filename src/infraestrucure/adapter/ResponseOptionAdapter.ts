@@ -76,9 +76,5 @@ export class ResponseOptionAdapter implements ResponseOptionPort {
     const result = await this.repository.update(id, { status: 1 });
     return (result.affected ?? 0) > 0;
   }
-
-  async deleteOption(id: number): Promise<boolean> {
-    return await this.deactivateOption(id);
-  }
 }
 

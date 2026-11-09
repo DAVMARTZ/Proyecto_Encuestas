@@ -78,9 +78,5 @@ export class RoleAdapter implements RolePort {
     const result = await this.repository.update(id, { status: 1 });
     return (result.affected ?? 0) > 0;
   }
-
-  async deleteRole(id: number): Promise<boolean> {
-    return await this.deactivateRole(id);
-  }
 }
 

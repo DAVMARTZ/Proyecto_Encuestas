@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { SurveyApplication } from "../../application/SurveyApplication";
 import { loadSurveyData } from "../util/surveyValidator";
 import { loadUpdateSurveyData } from "../util/survey-update-validation";
+import { isAdmin } from "../web/roleMiddleware";
+import { parseId, sendError } from "../util/http-utils";
 
 export class SurveyController {
   constructor(private readonly surveyApp: SurveyApplication) {}
@@ -12,9 +14,10 @@ export class SurveyController {
   create = async (req: Request, res: Response): Promise<void> => {
     try {
       const authUser = (req as any).user;
+      // El creador siempre es el usuario autenticado
       const bodyWithUser = {
         ...req.body,
-        userId: req.body.userId || authUser?.userId || authUser?.id,
+        userId: authUser?.userId,
       };
 
       const data = loadSurveyData(bodyWithUser);
@@ -24,16 +27,16 @@ export class SurveyController {
         description: data.description,
         closeDate: data.closeDate,
         userId: data.userId,
-        questions: data.questions?.map((q) => ({
+        questions: data.questions?.map((q, questionIndex) => ({
           questionText: q.questionText,
           questionType: q.questionType,
           isRequired: q.isRequired ?? true,
-          displayOrder: q.displayOrder ?? 1,
+          displayOrder: q.displayOrder ?? questionIndex + 1,
           status: q.status ?? 1,
           surveyId: 0,
-          options: q.options?.map((opt) => ({
+          options: q.options?.map((opt, optionIndex) => ({
             optionText: opt.optionText,
-            displayOrder: opt.displayOrder ?? 1,
+            displayOrder: opt.displayOrder ?? optionIndex + 1,
             status: opt.status ?? 1,
             questionId: 0,
           })),
@@ -44,8 +47,8 @@ export class SurveyController {
         message: "Encuesta creada con éxito",
         surveyId,
       });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   };
 
@@ -54,11 +57,11 @@ export class SurveyController {
    */
   getAll = async (req: Request, res: Response): Promise<void> => {
     try {
-      const includeInactive = req.query.includeInactive === "true";
-      const surveys = await this.surveyApp.getAllSurveys(includeInactive);
+      const includeInactive = req.query.includeInactive === "true" && isAdmin(req);
+      const surveys = await this.surveyApp.getAllSurveys(includeInactive, (req as any).user.userId, isAdmin(req));
       res.status(200).json(surveys);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   };
 
@@ -67,16 +70,16 @@ export class SurveyController {
    */
   getById = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id) || id <= 0) {
+      const id = parseId(req.params.id);
+      if (id === null) {
         res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
         return;
       }
 
-      const survey = await this.surveyApp.getSurveyById(id);
+      const survey = await this.surveyApp.getSurveyById(id, (req as any).user.userId, isAdmin(req));
       res.status(200).json(survey);
-    } catch (error: any) {
-      res.status(404).json({ error: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   };
 
@@ -85,8 +88,8 @@ export class SurveyController {
    */
   getByUserId = async (req: Request, res: Response): Promise<void> => {
     try {
-      const userId = parseInt(req.params.userId, 10);
-      if (isNaN(userId) || userId <= 0) {
+      const userId = parseId(req.params.userId);
+      if (userId === null) {
         res.status(400).json({ error: "ID de usuario inválido. Debe ser un entero positivo." });
         return;
       }
@@ -94,8 +97,8 @@ export class SurveyController {
       const includeInactive = req.query.includeInactive === "true";
       const surveys = await this.surveyApp.getSurveysByUserId(userId, includeInactive);
       res.status(200).json(surveys);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   };
 
@@ -104,8 +107,8 @@ export class SurveyController {
    */
   update = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id) || id <= 0) {
+      const id = parseId(req.params.id);
+      if (id === null) {
         res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
         return;
       }
@@ -113,8 +116,8 @@ export class SurveyController {
       const dataLoad = loadUpdateSurveyData(req.body);
       await this.surveyApp.updateSurvey(id, dataLoad);
       res.status(200).json({ message: "Encuesta actualizada correctamente" });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   };
 
@@ -123,16 +126,34 @@ export class SurveyController {
    */
   publish = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id) || id <= 0) {
+      const id = parseId(req.params.id);
+      if (id === null) {
         res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
         return;
       }
 
       await this.surveyApp.publishSurvey(id);
-      res.status(200).json({ message: "Encuesta publicada exitosamente y disponible (status: 1 - ACTIVO)" });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+      res.status(200).json({ message: "Encuesta publicada exitosamente y disponible (status: 1 - PUBLICADA)" });
+    } catch (error) {
+      sendError(res, error);
+    }
+  };
+
+  /**
+   * Devuelve a borrador una encuesta publicada sin respuestas.
+   */
+  returnToDraft = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const id = parseId(req.params.id);
+      if (id === null) {
+        res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
+        return;
+      }
+
+      await this.surveyApp.returnToDraft(id);
+      res.status(200).json({ message: "La encuesta volvió a borrador (status: 2 - BORRADOR)" });
+    } catch (error) {
+      sendError(res, error);
     }
   };
 
@@ -141,16 +162,16 @@ export class SurveyController {
    */
   deactivate = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id) || id <= 0) {
+      const id = parseId(req.params.id);
+      if (id === null) {
         res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
         return;
       }
 
       await this.surveyApp.deactivateSurvey(id);
       res.status(200).json({ message: "Encuesta inactivada lógicamente (status: 0 - INACTIVO)" });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   };
 
@@ -159,16 +180,16 @@ export class SurveyController {
    */
   activate = async (req: Request, res: Response): Promise<void> => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id) || id <= 0) {
+      const id = parseId(req.params.id);
+      if (id === null) {
         res.status(400).json({ error: "ID inválido. Debe ser un entero positivo." });
         return;
       }
 
       await this.surveyApp.activateSurvey(id);
       res.status(200).json({ message: "Encuesta reactivada exitosamente (status: 1 - ACTIVO)" });
-    } catch (error: any) {
-      res.status(400).json({ error: error.message });
+    } catch (error) {
+      sendError(res, error);
     }
   };
 

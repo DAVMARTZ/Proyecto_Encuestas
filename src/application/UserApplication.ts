@@ -1,7 +1,5 @@
-import bcrypt from "bcryptjs";
-import { User } from "../domain/User";
+import { SessionUser, User } from "../domain/User";
 import { UserPort } from "../domain/UserPort";
-import { AuthApplication } from "./AuthApplication";
 
 export class UserApplication {
   private port: UserPort;
@@ -10,42 +8,41 @@ export class UserApplication {
     this.port = port;
   }
 
-  async createUser(user: Omit<User, "id">): Promise<number> {
-    const existUser = await this.port.getUserByEmail(user.email);
-    if (existUser) {
-      throw new Error("Este email ya está registrado");
+  /**
+   * Devuelve el usuario de la sesión a partir de su cuenta de Firebase.
+   * En su primer ingreso lo crea como STUDENT. Las cuentas se enlazan solo por UID,
+   * nunca por correo, para que nadie herede otra cuenta registrando su correo en Firebase.
+   */
+  async getOrCreateSessionUser(identity: { uid: string; email?: string; name?: string }): Promise<SessionUser> {
+    const existing = await this.port.getSessionUserByFirebaseUid(identity.uid);
+    if (existing) {
+      return existing;
     }
 
-    // Hashear la contraseña con bcrypt (cost factor 10)
-    const hashedPassword = await bcrypt.hash(user.password, 10);
-    user.password = hashedPassword;
-
-    return this.port.createUser(user);
-  }
-
-  async login(email: string, password: string): Promise<{ token: string; user: Omit<User, "password"> }> {
-    const user = await this.port.getUserByEmail(email);
-    if (!user) {
-      throw new Error("Credenciales inválidas");
+    if (!identity.email) {
+      throw new Error("La cuenta de Firebase no tiene un correo asociado");
     }
 
-    if (user.status === 0 || user.statusUser === 0) {
-      throw new Error("El usuario se encuentra inactivo");
+    try {
+      const name = (identity.name || identity.email.split("@")[0]).slice(0, 150);
+      await this.port.createUser({ name, email: identity.email, firebaseUid: identity.uid, status: 1 });
+    } catch (error) {
+      // Dos peticiones simultáneas del primer ingreso: la otra ya lo creó
+      const created = await this.port.getSessionUserByFirebaseUid(identity.uid);
+      if (created) {
+        return created;
+      }
+      if (await this.port.getUserByEmail(identity.email)) {
+        throw new Error("Este correo ya está registrado con otra cuenta");
+      }
+      throw error;
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      throw new Error("Credenciales inválidas");
+    const created = await this.port.getSessionUserByFirebaseUid(identity.uid);
+    if (!created) {
+      throw new Error("No se pudo iniciar la sesión del usuario");
     }
-
-    const token = AuthApplication.generateToken({
-      userId: user.id,
-      email: user.email,
-      roleId: user.roleId,
-    });
-
-    const { password: _, ...usuarioSinPassword } = user;
-    return { token, user: usuarioSinPassword };
+    return created;
   }
 
   async getUserById(id: number): Promise<User | null> {
@@ -64,15 +61,6 @@ export class UserApplication {
     const existingUser = await this.port.getUserById(id);
     if (!existingUser) {
       throw new Error("Usuario no encontrado");
-    }
-    if (user.email) {
-      const emailTaken = await this.port.getUserByEmail(user.email);
-      if (emailTaken && emailTaken.id !== id) {
-        throw new Error("El email ya está en uso");
-      }
-    }
-    if (user.password) {
-      user.password = await bcrypt.hash(user.password, 10);
     }
     return this.port.updateUser(id, user);
   }

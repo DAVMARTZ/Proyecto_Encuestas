@@ -1,5 +1,7 @@
-import { Role } from "../domain/Role";
+import { Role, ROLES } from "../domain/Role";
 import { RolePort } from "../domain/RolePort";
+
+const BASE_ROLE_IDS: number[] = [ROLES.ADMIN, ROLES.STUDENT];
 
 /**
  * Capa de Aplicación - Casos de Uso para Roles
@@ -62,6 +64,13 @@ export class RoleApplication {
       throw new Error("Rol no encontrado");
     }
 
+    if (BASE_ROLE_IDS.includes(id)) {
+      const changesName = data.name !== undefined && data.name.toUpperCase().trim() !== existingRole.name;
+      if (changesName || Number(data.status) === 0) {
+        throw new Error("Los roles base del sistema no se pueden renombrar ni inactivar");
+      }
+    }
+
     if (data.name) {
       const normalizedName = data.name.toUpperCase().trim();
       const roleWithName = await this.port.getRoleByName(normalizedName);
@@ -82,6 +91,9 @@ export class RoleApplication {
     if (!role) {
       throw new Error("Rol no encontrado");
     }
+    if (BASE_ROLE_IDS.includes(id)) {
+      throw new Error("Los roles base del sistema no se pueden renombrar ni inactivar");
+    }
     return await this.port.deactivateRole(id);
   }
 
@@ -94,13 +106,6 @@ export class RoleApplication {
       throw new Error("Rol no encontrado");
     }
     return await this.port.activateRole(id);
-  }
-
-  /**
-   * Eliminación lógica (baja lógica vía DELETE sin borrado físico).
-   */
-  async deleteRole(id: number): Promise<boolean> {
-    return await this.deactivateRole(id);
   }
 }
 

@@ -1,3 +1,5 @@
+> **DOCUMENTO OBSOLETO:** describe una versión anterior del proyecto. La referencia vigente es `DEV3.MD`.
+
 
 ## 🏗️ Arquitectura del Proyecto
 

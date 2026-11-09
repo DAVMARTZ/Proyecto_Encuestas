@@ -8,6 +8,5 @@ export interface RolePort {
     updateRole(id: number, role: Partial<Role>): Promise<boolean>;
     deactivateRole(id: number): Promise<boolean>;
     activateRole(id: number): Promise<boolean>;
-    deleteRole(id: number): Promise<boolean>;
 }
 

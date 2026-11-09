@@ -4,15 +4,13 @@ import { connectDB } from "./infraestrucure/config/data-base";
 
 const serverBootstrap = new ServerBootstrap(app);
 
-(async ()=>{
+(async () => {
   try {
-    const instances = [
-      connectDB(), //Conexion a la DB
-      serverBootstrap.initialize() // Inicializacion del servidor
-    ];
-    await Promise.all(instances);
+    // El servidor solo recibe peticiones cuando la base de datos ya está disponible
+    await connectDB();
+    await serverBootstrap.initialize();
   } catch (error) {
-    console.log("Error al iniciar la aplicacion", error);
+    console.error("Error al iniciar la aplicacion", error);
     process.exit(1);
   }
 })();

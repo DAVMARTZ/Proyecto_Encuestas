@@ -10,7 +10,6 @@ export interface Question {
   isRequired: boolean;
   displayOrder: number;
   status: QuestionStatus;
-  statusQuestion?: QuestionStatus; // Compatibilidad
   surveyId: number;
   options?: ResponseOption[]; 
 }

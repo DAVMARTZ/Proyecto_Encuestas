@@ -33,9 +33,10 @@ function validateSurveyData(data: any): ValidationSurveyData {
         "string.max": "El título no puede superar los 200 caracteres.",
         "any.required": "El título es obligatorio.",
       }),
-      description: joi.string().allow("", null).optional(),
-      closeDate: joi.date().iso().allow(null).optional().messages({
+      description: joi.string().max(1000).allow("", null).optional(),
+      closeDate: joi.date().iso().greater("now").allow(null).optional().messages({
         "date.format": "La fecha de cierre debe tener un formato ISO válido.",
+        "date.greater": "La fecha de cierre debe ser posterior a la fecha actual.",
       }),
       userId: joi.number().integer().positive().required().messages({
         "number.base": "El ID del usuario debe ser un número entero.",
@@ -43,20 +44,24 @@ function validateSurveyData(data: any): ValidationSurveyData {
       }),
       questions: joi.array().items(
         joi.object({
-          questionText: joi.string().trim().required(),
-          questionType: joi.string().trim().required(),
+          questionText: joi.string().trim().max(500).required(),
+          questionType: joi.string().valid("Escala", "Abierta", "Seleccion Multiple").required().messages({
+            "any.only": "El tipo de pregunta debe ser 'Escala', 'Abierta' o 'Seleccion Multiple'.",
+          }),
           isRequired: joi.boolean().optional().default(true),
-          displayOrder: joi.number().integer().optional().default(1),
-          status: joi.number().optional().default(1),
+          displayOrder: joi.number().integer().min(1).optional(),
+          status: joi.number().valid(0, 1).optional().default(1),
           options: joi.array().items(
             joi.object({
-              optionText: joi.string().trim().required(),
-              displayOrder: joi.number().integer().optional().default(1),
-              status: joi.number().optional().default(1),
+              optionText: joi.string().trim().max(300).required(),
+              displayOrder: joi.number().integer().min(1).optional(),
+              status: joi.number().valid(0, 1).optional().default(1),
             }).unknown(true)
-          ).optional()
+          ).max(50).unique("displayOrder", { ignoreUndefined: true }).optional().messages({
+            "array.unique": "No puede haber dos opciones con el mismo orden.",
+          })
         }).unknown(true)
-      ).optional()
+      ).max(100).optional()
     })
     .unknown(true);
 

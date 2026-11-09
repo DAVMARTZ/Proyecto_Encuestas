@@ -20,7 +20,7 @@ export class SurveyEntity {
   @Column({ name: 'description', type: 'text', nullable: true })
   description?: string; 
 
-  @Column({ name: 'status', type: 'smallint', default: 1 })
+  @Column({ name: 'status', type: 'smallint', default: 2 })
   status!: number;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) 

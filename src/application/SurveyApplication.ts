@@ -1,11 +1,15 @@
 import { SurveyPort } from "../domain/SurveyPort";
-import { Survey } from "../domain/Survey";
+import { SurveyResponsePort } from "../domain/SurveyResponsePort";
+import { Survey, SURVEY_STATUS } from "../domain/Survey";
 
 export class SurveyApplication {
-  constructor(private readonly surveyPort: SurveyPort) {}
+  constructor(
+    private readonly surveyPort: SurveyPort,
+    private readonly responsePort: SurveyResponsePort
+  ) {}
 
   /**
-   * Crea una nueva encuesta con estado inicial activo (1).
+   * Crea una nueva encuesta en estado borrador.
    */
   async createSurvey(data: Omit<Survey, "surveyId" | "status" | "createdAt">): Promise<number> {
     if (!data.title || data.title.trim() === "") {
@@ -17,32 +21,62 @@ export class SurveyApplication {
 
     const newSurvey: Survey = {
       ...data,
-      status: 1,
+      status: SURVEY_STATUS.DRAFT,
     };
 
     return await this.surveyPort.save(newSurvey);
   }
 
   /**
-   * Recupera las encuestas generales del sistema.
+   * Recupera las encuestas generales del sistema, indicando cuántas preguntas
+   * activas tiene cada una y si el usuario de la sesión ya la respondió.
    */
-  async getAllSurveys(includeInactive: boolean = false): Promise<Survey[]> {
-    return await this.surveyPort.findAll(includeInactive);
+  async getAllSurveys(includeInactive: boolean, userId: number, isAdmin: boolean = false): Promise<Survey[]> {
+    const surveys = await this.surveyPort.findAll(includeInactive);
+    const responded = await this.responsePort.getRespondedSurveyIds(userId);
+    const counts = await this.responsePort.countResponsesBySurvey();
+
+    return surveys.map((survey) => {
+      const { questions, ...data } = survey;
+      const summary = {
+        ...data,
+        questionCount: this.activeQuestions(survey).length,
+        answered: responded.includes(survey.surveyId as number),
+        responseCount: counts[survey.surveyId as number] ?? 0,
+      };
+      return isAdmin ? summary : this.forRespondent(summary);
+    });
   }
 
   /**
    * Busca una encuesta por su ID numérico (incluyendo sus preguntas y opciones).
+   * Quien no es administrador solo ve encuestas publicadas, con preguntas y opciones activas.
    */
-  async getSurveyById(id: number): Promise<Survey> {
+  async getSurveyById(id: number, userId: number, isAdmin: boolean = false): Promise<Survey> {
     const survey = await this.surveyPort.findById(id);
     if (!survey) {
       throw new Error("La encuesta solicitada no existe.");
     }
-    return survey;
+    if (isAdmin) {
+      const counts = await this.responsePort.countResponsesBySurvey();
+      return { ...survey, responseCount: counts[id] ?? 0 };
+    }
+    if (Number(survey.status) !== SURVEY_STATUS.PUBLISHED) {
+      throw new Error("La encuesta solicitada no existe.");
+    }
+
+    return {
+      ...this.forRespondent(survey),
+      answered: await this.responsePort.hasUserResponded(id, userId),
+      questions: this.activeQuestions(survey).map((q) => ({
+        ...q,
+        options: (q.options ?? []).filter((opt) => Number(opt.status) === 1),
+      })),
+    };
   }
 
   /**
-   * Recupera las encuestas creadas por un usuario específico (docente o admin).
+   * Recupera las encuestas creadas por un usuario específico.
    */
   async getSurveysByUserId(userId: number, includeInactive: boolean = false): Promise<Survey[]> {
     if (!userId || userId <= 0) {
@@ -52,7 +86,7 @@ export class SurveyApplication {
   }
 
   /**
-   * Actualiza la información de una encuesta solo si está activa.
+   * Actualiza la información de una encuesta solo si está en borrador.
    */
   async updateSurvey(id: number, data: Partial<Survey>): Promise<boolean> {
     const survey = await this.surveyPort.findById(id);
@@ -60,15 +94,18 @@ export class SurveyApplication {
     if (!survey) {
       throw new Error("La encuesta que intenta editar no existe.");
     }
-    if (Number(survey.status) === 0) {
-      throw new Error("No se pueden modificar encuestas inactivadas.");
+    if (Number(survey.status) !== SURVEY_STATUS.DRAFT) {
+      throw new Error("Solo se pueden modificar encuestas en borrador.");
+    }
+    if (Object.keys(data).length === 0) {
+      throw new Error("Debe enviar al menos un campo para actualizar.");
     }
 
     return await this.surveyPort.update(id, data);
   }
 
   /**
-   * Publica/Activa la encuesta para que pueda recibir respuestas.
+   * Publica un borrador para que pueda recibir respuestas.
    */
   async publishSurvey(id: number): Promise<boolean> {
     const survey = await this.surveyPort.findById(id);
@@ -76,11 +113,36 @@ export class SurveyApplication {
     if (!survey) {
       throw new Error("La encuesta no existe.");
     }
-    if (Number(survey.status) === 1) {
-      throw new Error("La encuesta ya se encuentra activa/publicada.");
+    if (Number(survey.status) !== SURVEY_STATUS.DRAFT) {
+      throw new Error("Solo se pueden publicar encuestas en borrador.");
+    }
+    if (survey.closeDate && new Date(survey.closeDate) < new Date()) {
+      throw new Error("La fecha de cierre de la encuesta ya pasó.");
+    }
+    this.validateQuestionsToPublish(survey);
+
+    return await this.surveyPort.updateStatus(id, SURVEY_STATUS.PUBLISHED);
+  }
+
+  /**
+   * Devuelve a borrador una encuesta publicada que todavía no tiene respuestas.
+   */
+  async returnToDraft(id: number): Promise<boolean> {
+    const survey = await this.surveyPort.findById(id);
+
+    if (!survey) {
+      throw new Error("La encuesta no existe.");
+    }
+    if (Number(survey.status) !== SURVEY_STATUS.PUBLISHED) {
+      throw new Error("Solo las encuestas publicadas pueden volver a borrador.");
     }
 
-    return await this.surveyPort.updateStatus(id, 1);
+    const counts = await this.responsePort.countResponsesBySurvey();
+    if ((counts[id] ?? 0) > 0) {
+      throw new Error("No se puede volver a borrador una encuesta que ya tiene respuestas.");
+    }
+
+    return await this.surveyPort.updateStatus(id, SURVEY_STATUS.DRAFT);
   }
 
   /**
@@ -92,7 +154,7 @@ export class SurveyApplication {
     if (!survey) {
       throw new Error("La encuesta no existe.");
     }
-    if (Number(survey.status) === 0) {
+    if (Number(survey.status) === SURVEY_STATUS.INACTIVE) {
       throw new Error("La encuesta ya está inactiva.");
     }
 
@@ -100,7 +162,7 @@ export class SurveyApplication {
   }
 
   /**
-   * Reactiva la encuesta.
+   * Reactiva una encuesta inactiva y la deja publicada.
    */
   async activateSurvey(id: number): Promise<boolean> {
     const survey = await this.surveyPort.findById(id);
@@ -108,17 +170,40 @@ export class SurveyApplication {
     if (!survey) {
       throw new Error("La encuesta no existe.");
     }
-    if (Number(survey.status) === 1) {
-      throw new Error("La encuesta ya se encuentra activa.");
+    if (Number(survey.status) !== SURVEY_STATUS.INACTIVE) {
+      throw new Error("Solo se pueden reactivar encuestas inactivas.");
     }
+    this.validateQuestionsToPublish(survey);
 
     return await this.surveyPort.activate(id);
   }
 
   /**
-   * Baja lógica mediante DELETE /surveys/:id (cero borrado físico).
+   * Quien responde no necesita saber quién creó la encuesta ni cuántas respuestas tiene.
    */
-  async deleteSurvey(id: number): Promise<boolean> {
-    return await this.deactivateSurvey(id);
+  private forRespondent(survey: Survey): Survey {
+    const { userId: _creator, responseCount: _responses, ...data } = survey;
+    return data as Survey;
+  }
+
+  private activeQuestions(survey: Survey) {
+    return (survey.questions ?? []).filter((q) => Number(q.status) === 1);
+  }
+
+  /**
+   * Una encuesta solo puede recibir respuestas si tiene preguntas que se puedan contestar.
+   */
+  private validateQuestionsToPublish(survey: Survey): void {
+    const questions = this.activeQuestions(survey);
+    if (questions.length === 0) {
+      throw new Error("La encuesta debe tener al menos una pregunta activa.");
+    }
+
+    for (const question of questions) {
+      const activeOptions = (question.options ?? []).filter((opt) => Number(opt.status) === 1);
+      if (question.questionType !== "Abierta" && activeOptions.length === 0) {
+        throw new Error(`La pregunta "${question.questionText}" necesita al menos una opción activa.`);
+      }
+    }
   }
 }

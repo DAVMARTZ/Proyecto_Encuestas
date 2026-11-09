@@ -4,10 +4,11 @@ export interface User {
     id?: number;
     name: string;
     email: string;
-    password: string;
+    firebaseUid?: string;
     avatarBase64?: string;
     createdAt?: Date;
     status: UserStatus;
-    statusUser?: UserStatus;
     roleId?: number;
 }
+
+export type SessionUser = Pick<User, "id" | "email" | "status" | "roleId">;

@@ -1,12 +1,10 @@
 import joi from "joi";
 
+// El correo y la contraseña se administran en Firebase
 export type ReturnUpdateUserData = Partial<{
     name: string;
-    email: string;
-    password: string;
     avatarBase64: string | null;
     status: number;
-    statusUser: number;
     roleId: number;
 }>;
 
@@ -18,16 +16,17 @@ type validationUpdateUserData = {
 function validateUpdateUserData(data: any): validationUpdateUserData {
     const schema = joi
         .object({
-            name: joi.string().trim().min(3).optional(),
-            email: joi.string().trim().email({ tlds: { allow: false } }).optional(),
-            password: joi.string().min(6).optional(),
-            avatarBase64: joi.string().optional().allow(null, ''),
+            name: joi.string().trim().min(3).max(150).optional(),
+            // Solo imágenes en Data URI, de hasta unos 3 MB
+            avatarBase64: joi.string().max(4000000).pattern(/^data:image\/(png|jpeg|webp);base64,/).optional().allow(null, '').messages({
+                'string.max': 'La foto de perfil es demasiado grande',
+                'string.pattern.base': 'La foto debe ser una imagen PNG, JPEG o WEBP',
+            }),
             status: joi.number().valid(0, 1).optional(),
-            statusUser: joi.number().valid(0, 1).optional(),
             roleId: joi.number().integer().positive().optional(),
-        })
-        .unknown(true);
+        });
 
+    // stripUnknown descarta cualquier otro campo
     const { error, value } = schema.validate(data, {
         abortEarly: false,
         stripUnknown: true,
