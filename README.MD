@@ -252,6 +252,9 @@ DB_PORT=5432
 DB_USER=tu_usuario_postgres
 DB_PASSWORD=tu_contraseña
 DB_NAME=nombre_de_tu_base_de_datos
+FIREBASE_PROJECT_ID=id_de_tu_proyecto
+FRONTEND_URL=http://localhost:4200
+RATE_LIMIT_MAX=600
 ```
 
 ### 4. Crear la base de datos en PostgreSQL
@@ -363,96 +366,9 @@ Base URL: `http://localhost:4000/api`
 
 ---
 
-### 4. 📝 Registro de Usuario Administrador (ID: 1)
+### 4. 🔑 Inicio de Sesión con Firebase
 
-* **Método:** `POST`
-* **Ruta:** `/users`
-* **Acceso:** Público
-* **Headers:** `Content-Type: application/json`
-* **Body:**
-
-```json
-{
-  "name": "Ana Silva",
-  "email": "ana.silva@correo.com",
-  "password": "Password123",
-  "roleId": 1,
-  "status": 1
-}
-```
-
-* **Respuesta (`201 Created`):**
-
-```json
-{
-  "message": "Usuario creado con éxito",
-  "userId": 1
-}
-```
-
----
-
-### 5. 📝 Registro de Segundo Usuario - Estudiante (ID: 2)
-
-* **Método:** `POST`
-* **Ruta:** `/users`
-* **Acceso:** Público
-* **Headers:** `Content-Type: application/json`
-* **Body:**
-
-```json
-{
-  "name": "David Martinez",
-  "email": "david.martinez@correo.com",
-  "password": "Password123",
-  "roleId": 2,
-  "status": 1
-}
-```
-
-* **Respuesta (`201 Created`):**
-
-```json
-{
-  "message": "Usuario creado con éxito",
-  "userId": 2
-}
-```
-
----
-
-### 6. 🔑 Inicio de Sesión / Login (Obtención de Token JWT)
-
-* **Método:** `POST`
-* **Ruta:** `/users/login`
-* **Acceso:** Público
-* **Headers:** `Content-Type: application/json`
-* **Body:**
-
-```json
-{
-  "email": "ana.silva@correo.com",
-  "password": "Password123"
-}
-```
-
-* **Respuesta (`200 OK`):**
-
-```json
-{
-  "message": "Inicio de sesión exitoso",
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "name": "Ana Silva",
-    "email": "ana.silva@correo.com",
-    "status": 1,
-    "roleId": 1
-  }
-}
-```
-
-> 📋 **Copia el valor de `token`** para usarlo en la pestaña `Authorization` > `Bearer Token` de las siguientes peticiones.
+El inicio de sesión y el registro se hacen en Firebase. El backend valida el token de Firebase en cada petición y crea al usuario como `STUDENT` en su primer ingreso. Envía el token en `Authorization` > `Bearer Token`.
 
 ---
 
@@ -638,6 +554,9 @@ npm run start    # Ejecuta la versión compilada desde /dist
 | `DB_USER`     | string | ✅        | —       | Usuario de la BD               |
 | `DB_PASSWORD` | string | ❌        | `""`   | Contraseña de la BD           |
 | `DB_NAME`     | string | ✅        | —       | Nombre de la base de datos     |
+| `FIREBASE_PROJECT_ID` | string | ✅ | — | ID del proyecto de Firebase con el que se inicia sesión |
+| `FRONTEND_URL` | string | ❌ | `http://localhost:4200` | Origen permitido por CORS; si son varios, separados por coma |
+| `RATE_LIMIT_MAX` | number | ❌ | `600` | Peticiones permitidas por minuto y por IP |
 
 La validación de estas variables se realiza con **Joi** al iniciar la aplicación en [`environment-vars.ts`](src/infraestrucure/config/environment-vars.ts). Si falta alguna variable requerida, la app no arranca y muestra el error específico.
 

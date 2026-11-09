@@ -23,20 +23,20 @@
 El **Sistema de Gestión de Encuestas** es una plataforma backend RESTful diseñada para administrar el ciclo de vida completo de encuestas institucionales, académicas o empresariales.
 
 ### 👥 Actores y Roles del Negocio
-* **ADMIN (Administrador - `roleId: 1`):** Control total de la plataforma, gestión de roles de usuario, supervisión de encuestas, usuarios y acceso a estadísticas globales.
-* **DOCENTE / CREADOR (`roleId: 2` o personalizado):** Diseña encuestas, configura preguntas (abiertas, escalas, selección múltiple) y analiza resultados y métricas consolidadas de sus encuestas.
-* **STUDENT / ENCUESTADO:** Consulta encuestas públicas o activadas y envía respuestas de manera identificada o anónima.
+* **ADMIN (Administrador - `roleId: 1`):** Control total de la plataforma: gestión de roles y usuarios, diseño de encuestas (preguntas abiertas, escalas, selección múltiple) y acceso a resultados y estadísticas.
+* **STUDENT / ENCUESTADO (`roleId: 2`):** Con sesión iniciada consulta las encuestas publicadas y responde cada una una sola vez.
 
 ### 🔄 Ciclo de Vida de una Encuesta
 ```mermaid
 stateDiagram-v2
-    [*] --> Activa_Borrador: POST /surveys (Creación)
-    Activa_Borrador --> Con_Preguntas: POST /surveys/:id/questions (Diseño)
-    Con_Preguntas --> Publicada: PATCH /surveys/:id/publish (Abierta a Respuestas)
-    Publicada --> Recibiendo_Respuestas: POST /surveys/:id/responses
-    Recibiendo_Respuestas --> Inactiva: PATCH /surveys/:id/deactivate (Baja Lógica / Cierre)
-    Inactiva --> Publicada: PATCH /surveys/:id/activate (Reactivación)
-    Inactiva --> [*]
+    [*] --> Borrador: POST /surveys (status 2)
+    Borrador --> Borrador: Editar encuesta, preguntas y opciones
+    Borrador --> Publicada: PATCH /surveys/:id/publish (status 1)
+    Publicada --> Publicada: POST /surveys/:id/responses
+    Borrador --> Inactiva: PATCH /surveys/:id/deactivate (status 0)
+    Publicada --> Inactiva: PATCH /surveys/:id/deactivate (status 0)
+    Publicada --> Borrador: PATCH /surveys/:id/draft (solo sin respuestas)
+    Inactiva --> Publicada: PATCH /surveys/:id/activate
 ```
 
 ---
@@ -52,7 +52,7 @@ flowchart TD
     end
 
     subgraph INFRAESTRUCTURA ["2. Capa de Infraestructura (src/infraestrucure)"]
-        MW["Middlewares (CORS, Auth JWT, Role, Joi Validator)"]
+        MW["Middlewares (CORS, Auth Firebase, Role, Joi Validator)"]
         ROUTER["Express Routes (*Routes.ts)"]
         CONTROLLER["Controllers (*Controller.ts)"]
         ADAPTER["TypeORM Adapters (*Adapter.ts)"]
@@ -105,8 +105,7 @@ flowchart TD
 | **ORM & Persistencia** | TypeORM | v0.3.20 |
 | **Motor de Base de Datos** | PostgreSQL | v14+ con soporte para `BYTEA` y `TIMESTAMPTZ` |
 | **Validación de Payloads** | Joi | v17.13.3 (validaciones estrictas de esquemas) |
-| **Seguridad de Passwords** | bcryptjs | v3.0.3 (hashing con salt cost factor 10) |
-| **Autenticación** | JSON Web Token (JWT) | v9.0.3 |
+| **Autenticación** | Firebase Authentication (`firebase-admin`) | v14 |
 | **Compresión de Archivos** | Node.js zlib | Gzip nivel 9 para optimización de avatares en BD |
 | **Compilación & Runner** | tsx & tsc | Ejecución ágil con TypeScript puro |
 
@@ -142,6 +141,7 @@ erDiagram
         int user_id PK
         varchar name
         varchar email UK
+        varchar firebase_uid
         varchar password_hash
         timestamptz created_at
         smallint status_user
@@ -227,9 +227,8 @@ Proyecto_Encuestas/
     │   └── SurveyResponsePort.ts         # Puerto de persistencia y métricas de Respuestas
     │
     ├── application/                      # 🟡 CASOS DE USO (Lógica del Negocio)
-    │   ├── AuthApplication.ts           # Generación y verificación de tokens JWT
     │   ├── RoleApplication.ts           # Reglas de negocio para roles
-    │   ├── UserApplication.ts           # Casos de uso de usuarios y login
+    │   ├── UserApplication.ts           # Casos de uso de usuarios y sesión
     │   ├── SurveyApplication.ts         # Lógica de encuestas, publicación y filtros
     │   ├── QuestionApplication.ts       # Lógica de preguntas y validación de tipos
     │   ├── ResponseOptionApplication.ts # Lógica para opciones de selección
@@ -306,7 +305,7 @@ sequenceDiagram
     participant DB as PostgreSQL (TypeORM)
 
     Cliente->>AuthMW: POST /api/surveys/1/questions (Bearer Token + Body)
-    AuthMW->>AuthMW: Verificar Token JWT
+    AuthMW->>AuthMW: Verificar Token de Firebase
     alt Token Inválido o Ausente
         AuthMW-->>Cliente: 401 Unauthorized / 403 Forbidden
     end
@@ -335,15 +334,14 @@ sequenceDiagram
 ### 1. Módulo: Roles (`roles`)
 * **Propósito:** Definir los niveles de permiso dentro del sistema.
 * **Características:**
-  - Nombres únicos y normalizados en mayúsculas (`ADMIN`, `DOCENTE`, `STUDENT`).
+  - Nombres únicos y normalizados en mayúsculas (`ADMIN`, `STUDENT`).
   - Baja lógica sin borrado físico mediante `PATCH /roles/:id/deactivate`.
   - Reactivación lógica mediante `PATCH /roles/:id/activate`.
 
 ### 2. Módulo: Usuarios y Autenticación (`users`)
 * **Propósito:** Gestión de cuentas de usuario, inicio de sesión seguro y foto de perfil.
 * **Características:**
-  - **Hashing seguro:** Contraseñas protegidas mediante `bcryptjs` con factor de coste 10.
-  - **Tokens JWT:** Generación de token firmado para proteger rutas y transportar el payload del usuario.
+  - **Firebase Authentication:** El inicio de sesión, el registro y la recuperación de contraseña se hacen en Firebase. El backend valida el token en cada petición y crea al usuario como `STUDENT` en su primer ingreso. El rol siempre se toma de PostgreSQL.
   - **Foto de perfil optimizada:** El avatar en Base64 se comprime con `gzip` a un búfer binario y se guarda en columnas `BYTEA` (`photo_data`) y `photo_mime_type`. Al consultar el usuario, se descomprime automáticamente y se entrega en formato Data URI (`data:image/jpeg;base64,...`).
   - **Endpoint de perfil propio:** `GET /users/me` obtiene la información del usuario autenticado sin requerir ingresar su ID en la URL.
 
@@ -351,8 +349,8 @@ sequenceDiagram
 * **Propósito:** Administración de instrumentos de recolección de información.
 * **Características:**
   - Consulta detallada relacional: `GET /surveys/:id` incluye todas las preguntas y sus opciones disponibles, lista para ser renderizada en el frontend.
-  - Consulta por creador: `GET /users/:userId/surveys` permite que un docente vea únicamente las encuestas que ha diseñado.
-  - Control de publicación: Una encuesta en estado borrador puede ser activada/publicada para permitir respuestas.
+  - Consulta por creador: `GET /users/:userId/surveys` permite al administrador ver las encuestas diseñadas por un usuario.
+  - Control de publicación: Toda encuesta nace en borrador (`status = 2`). Solo en borrador se edita la encuesta, sus preguntas y sus opciones, y para publicarla necesita al menos una pregunta activa.
 
 ### 4. Módulo: Preguntas (`questions`)
 * **Propósito:** Formular los ítems que componen la encuesta.
@@ -369,7 +367,7 @@ sequenceDiagram
 ### 6. Módulo: Respuestas y Estadísticas (`survey_responses` & `response_details`)
 * **Propósito:** Captura de envíos de los participantes y generación de métricas analíticas.
 * **Características:**
-  - **Defensiva de Negocio:** Valida que la encuesta exista, esté activa (`status = 1`) y que la fecha de cierre no haya caducado.
+  - **Defensiva de Negocio:** Exige sesión; valida que la encuesta esté publicada (`status = 1`) y vigente, que el usuario no la haya respondido antes, que cada respuesta corresponda a una pregunta y opción activas de la encuesta y que se contesten las obligatorias.
   - **Detalle Legible:** `GET /surveys/:id/responses` entrega el nombre del usuario, el enunciado de la pregunta y el texto de la opción elegida.
   - **Consolidado Analítico:** `GET /surveys/:id/statistics` procesa en el backend el conteo de votos por opción y reúne las respuestas abiertas en un formato ideal para tableros o gráficas.
 
@@ -385,9 +383,9 @@ sequenceDiagram
 
 | Método | Endpoint | Acceso / Auth | Descripción |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/roles` | Público | Lista todos los roles activos. |
-| `GET` | `/roles?includeInactive=true` | Público | Lista todos los roles (incluye inactivos). |
-| `GET` | `/roles/:id` | Público | Obtiene el detalle de un rol por ID. |
+| `GET` | `/roles` | Bearer Token (ADMIN) | Lista todos los roles activos. |
+| `GET` | `/roles?includeInactive=true` | Bearer Token (ADMIN) | Lista todos los roles (incluye inactivos). |
+| `GET` | `/roles/:id` | Bearer Token (ADMIN) | Obtiene el detalle de un rol por ID. |
 | `POST` | `/roles` | Bearer Token (ADMIN) | Crea un nuevo rol. |
 | `PUT` | `/roles/:id` | Bearer Token (ADMIN) | Actualiza nombre o descripción de un rol. |
 | `PATCH` | `/roles/:id/deactivate` | Bearer Token (ADMIN) | Inactiva lógicamente un rol (`status = 0`). |
@@ -408,37 +406,21 @@ sequenceDiagram
 
 | Método | Endpoint | Acceso / Auth | Descripción |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/users` | Público | Registra un nuevo usuario con avatar opcional. |
-| `POST` | `/users/login` | Público | Inicia sesión y genera el Token JWT. |
 | `GET` | `/users/me` | Bearer Token | Obtiene los datos del usuario autenticado. |
-| `GET` | `/users` | Bearer Token | Lista todos los usuarios activos. |
-| `GET` | `/users?includeInactive=true` | Bearer Token | Lista todos los usuarios incluyendo inactivos. |
-| `GET` | `/users/:id` | Bearer Token | Obtiene un usuario por su ID. |
-| `GET` | `/users/email/:email` | Bearer Token | Obtiene un usuario por correo electrónico. |
-| `PUT` | `/users/:id` | Bearer Token | Actualiza información o foto del usuario. |
+| `GET` | `/users` | Bearer Token (ADMIN) | Lista todos los usuarios activos. |
+| `GET` | `/users?includeInactive=true` | Bearer Token (ADMIN) | Lista todos los usuarios incluyendo inactivos. |
+| `GET` | `/users/:id` | Bearer Token (propio o ADMIN) | Obtiene un usuario por su ID. |
+| `GET` | `/users/email/:email` | Bearer Token (ADMIN) | Obtiene un usuario por correo electrónico. |
+| `PUT` | `/users/:id` | Bearer Token (propio o ADMIN) | Actualiza nombre o foto del usuario. |
 | `PATCH` | `/users/:id/deactivate` | Bearer Token (ADMIN) | Inactivación lógica del usuario. |
 | `PATCH` | `/users/:id/activate` | Bearer Token (ADMIN) | Reactivación lógica del usuario. |
 | `DELETE` | `/users/:id` | Bearer Token (ADMIN) | Baja lógica vía DELETE. |
 
-**Payload Ejemplo (`POST /users/login`):**
-```json
-{
-  "email": "admin@encuestas.com",
-  "password": "123456Password!"
-}
-```
-**Respuesta:**
-```json
-{
-  "message": "Inicio de sesión exitoso",
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "name": "Administrador del Sistema",
-    "email": "admin@encuestas.com",
-    "roleId": 1
-  }
-}
+El inicio de sesión y el registro se hacen en Firebase. Todas las peticiones protegidas envían el token de Firebase en `Authorization: Bearer <token>`.
+
+El administrador inicial se enlaza por su UID de Firebase:
+```sql
+UPDATE users SET firebase_uid = 'UID_DE_LA_CUENTA_EN_FIREBASE' WHERE user_id = 1;
 ```
 
 ---
@@ -447,23 +429,23 @@ sequenceDiagram
 
 | Método | Endpoint | Acceso / Auth | Descripción |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/surveys` | Público | Lista todas las encuestas activas. |
-| `GET` | `/surveys/:id` | Público | Obtiene la encuesta completa con sus preguntas y opciones. |
-| `GET` | `/users/:userId/surveys` | Bearer Token | Lista las encuestas creadas por un usuario determinado. |
-| `POST` | `/surveys` | Bearer Token | Crea una nueva encuesta asociada al usuario autenticado. |
-| `PUT` | `/surveys/:id` | Bearer Token | Actualización parcial de título, descripción o fecha. |
-| `PATCH` | `/surveys/:id/publish` | Bearer Token | Publica/activa la encuesta para recibir respuestas. |
-| `PATCH` | `/surveys/:id/deactivate` | Bearer Token | Inactiva la encuesta (cierre de encuesta). |
-| `PATCH` | `/surveys/:id/activate` | Bearer Token | Reactiva la encuesta. |
-| `DELETE` | `/surveys/:id` | Bearer Token | Baja lógica de la encuesta. |
+| `GET` | `/surveys` | Bearer Token | Lista las encuestas publicadas, sin preguntas, con `questionCount` y `answered` para el usuario de la sesión (ADMIN puede usar `?includeInactive=true`). |
+| `GET` | `/surveys/:id` | Bearer Token | Obtiene la encuesta completa con sus preguntas y opciones. |
+| `GET` | `/users/:userId/surveys` | Bearer Token (ADMIN) | Lista las encuestas creadas por un usuario determinado. |
+| `POST` | `/surveys` | Bearer Token (ADMIN) | Crea una encuesta en borrador asociada al usuario autenticado. |
+| `PUT` | `/surveys/:id` | Bearer Token (ADMIN) | Actualización parcial de título, descripción o fecha (solo en borrador). |
+| `PATCH` | `/surveys/:id/publish` | Bearer Token (ADMIN) | Publica un borrador para recibir respuestas. |
+| `PATCH` | `/surveys/:id/draft` | Bearer Token (ADMIN) | Devuelve a borrador una encuesta publicada sin respuestas. |
+| `PATCH` | `/surveys/:id/deactivate` | Bearer Token (ADMIN) | Inactiva la encuesta (cierre de encuesta). |
+| `PATCH` | `/surveys/:id/activate` | Bearer Token (ADMIN) | Reactiva la encuesta. |
+| `DELETE` | `/surveys/:id` | Bearer Token (ADMIN) | Baja lógica de la encuesta. |
 
 **Payload Ejemplo (`POST /surveys`):**
 ```json
 {
   "title": "Evaluación Docente Semestre 2026-2",
   "description": "Encuesta sobre metodología pedagógica y acompañamiento del docente.",
-  "closeDate": "2026-12-20T23:59:59.000Z",
-  "userId": 1
+  "closeDate": "2026-12-20T23:59:59.000Z"
 }
 ```
 
@@ -473,14 +455,14 @@ sequenceDiagram
 
 | Método | Endpoint | Acceso / Auth | Descripción |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/surveys/:surveyId/questions` | Público | Lista todas las preguntas de una encuesta. |
-| `GET` | `/questions/:id` | Público | Consulta una pregunta por su identificador. |
-| `POST` | `/surveys/:surveyId/questions` | Bearer Token | Crea una pregunta vinculada a la encuesta (con opciones opcionales). |
-| `POST` | `/questions` | Bearer Token | Crea una pregunta pasando `surveyId` en el cuerpo. |
-| `PUT` | `/questions/:id` | Bearer Token | Actualiza enunciado, tipo u orden de la pregunta. |
-| `PATCH` | `/questions/:id/deactivate`| Bearer Token | Inactiva lógicamente la pregunta. |
-| `PATCH` | `/questions/:id/activate` | Bearer Token | Reactiva la pregunta. |
-| `DELETE` | `/questions/:id` | Bearer Token | Baja lógica de la pregunta. |
+| `GET` | `/surveys/:surveyId/questions` | Bearer Token (ADMIN) | Lista todas las preguntas de una encuesta. |
+| `GET` | `/questions/:id` | Bearer Token (ADMIN) | Consulta una pregunta por su identificador. |
+| `POST` | `/surveys/:surveyId/questions` | Bearer Token (ADMIN) | Crea una pregunta vinculada a la encuesta (con opciones opcionales). |
+| `POST` | `/questions` | Bearer Token (ADMIN) | Crea una pregunta pasando `surveyId` en el cuerpo. |
+| `PUT` | `/questions/:id` | Bearer Token (ADMIN) | Actualiza enunciado, tipo u orden de la pregunta. |
+| `PATCH` | `/questions/:id/deactivate` | Bearer Token (ADMIN) | Inactiva lógicamente la pregunta. |
+| `PATCH` | `/questions/:id/activate` | Bearer Token (ADMIN) | Reactiva la pregunta. |
+| `DELETE` | `/questions/:id` | Bearer Token (ADMIN) | Baja lógica de la pregunta. |
 
 **Payload Ejemplo con Opciones en Cascada (`POST /surveys/:surveyId/questions`):**
 ```json
@@ -504,13 +486,13 @@ sequenceDiagram
 
 | Método | Endpoint | Acceso / Auth | Descripción |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/questions/:questionId/options` | Público | Lista las opciones de una pregunta. |
-| `GET` | `/options/:id` | Público | Obtiene una opción específica por su ID. |
-| `POST` | `/questions/:questionId/options` | Bearer Token | Agrega una opción individual a la pregunta. |
-| `PUT` | `/options/:id` | Bearer Token | Actualiza el texto o el orden de la opción. |
-| `PATCH` | `/options/:id/deactivate` | Bearer Token | Inactiva la opción. |
-| `PATCH` | `/options/:id/activate` | Bearer Token | Reactiva la opción. |
-| `DELETE` | `/options/:id` | Bearer Token | Baja lógica de la opción. |
+| `GET` | `/questions/:questionId/options` | Bearer Token (ADMIN) | Lista las opciones de una pregunta. |
+| `GET` | `/options/:id` | Bearer Token (ADMIN) | Obtiene una opción específica por su ID. |
+| `POST` | `/questions/:questionId/options` | Bearer Token (ADMIN) | Agrega una opción individual a la pregunta. |
+| `PUT` | `/options/:id` | Bearer Token (ADMIN) | Actualiza el texto o el orden de la opción. |
+| `PATCH` | `/options/:id/deactivate` | Bearer Token (ADMIN) | Inactiva la opción. |
+| `PATCH` | `/options/:id/activate` | Bearer Token (ADMIN) | Reactiva la opción. |
+| `DELETE` | `/options/:id` | Bearer Token (ADMIN) | Baja lógica de la opción. |
 
 ---
 
@@ -518,15 +500,14 @@ sequenceDiagram
 
 | Método | Endpoint | Acceso / Auth | Descripción |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/surveys/:surveyId/responses` | Público / Auth Opcional | Envía las respuestas a una encuesta. |
-| `GET` | `/surveys/:surveyId/responses` | Bearer Token | Lista todas las respuestas detalladas recibidas. |
-| `GET` | `/surveys/:surveyId/statistics`| Bearer Token | Obtiene reporte consolidado y conteo de votos. |
+| `POST` | `/surveys/:surveyId/responses` | Bearer Token | Envía las respuestas a una encuesta (una vez por usuario). |
+| `GET` | `/users/me/responses` | Bearer Token | Encuestas respondidas por el usuario de la sesión, con lo que contestó. |
+| `GET` | `/surveys/:surveyId/responses` | Bearer Token (ADMIN) | Lista todas las respuestas detalladas recibidas. |
+| `GET` | `/surveys/:surveyId/statistics` | Bearer Token (ADMIN) | Reporte consolidado: votos, comentarios, promedio, respuestas positivas (4 y 5), neutras (3) y negativas (1 y 2), y participación. Admite `?from=` y `?to=` en formato ISO. |
 
 **Payload Ejemplo (`POST /surveys/1/responses`):**
 ```json
 {
-  "surveyId": 1,
-  "userId": 1,
   "details": [
     {
       "questionId": 1,
@@ -574,10 +555,27 @@ sequenceDiagram
 
 ---
 
+### ⚠️ Formato de Errores
+
+Todos los errores responden JSON con la forma `{ "error": "mensaje" }`.
+
+| Código | Significado |
+| :--- | :--- |
+| `400` | Datos inválidos o acción no permitida en el estado actual de la encuesta. |
+| `401` | Sin token, o token inválido o expirado. |
+| `403` | Permisos insuficientes o usuario inactivo. |
+| `404` | El recurso o la ruta no existen. |
+| `409` | Duplicado: correo o rol ya registrado, orden de opción repetido o encuesta ya respondida. |
+| `413` | El cuerpo de la petición es demasiado grande. |
+| `429` | Demasiadas peticiones desde la misma IP. |
+| `500` | Error interno. El detalle solo queda en los logs del servidor. |
+
+---
+
 ## 🚀 Guía de Pruebas con Postman y Entorno de Desarrollo
 
 ### 1. Variables de Entorno (`.env`)
-Asegúrate de que el archivo `.env` en la raíz contenga tus credenciales locales de PostgreSQL:
+Copia `.env.example` como `.env` y completa tus credenciales locales de PostgreSQL y el ID del proyecto de Firebase:
 ```env
 PORT=3000
 DB_HOST=localhost
@@ -585,7 +583,14 @@ DB_PORT=5432
 DB_USER=postgres
 DB_PASSWORD=tu_password_aqui
 DB_NAME=proyecto_encuestas
+FIREBASE_PROJECT_ID=id_de_tu_proyecto
+FRONTEND_URL=http://localhost:4200
+RATE_LIMIT_MAX=600
 ```
+
+### Base de Datos
+* **Base nueva:** ejecuta `init_database.sql`, que no borra datos y se puede repetir, y enlaza al administrador con su UID de Firebase.
+* **Base creada con la versión anterior:** ejecuta una vez `ajuste_base_existente.sql` y luego `ajuste_firebase.sql`.
 
 ### 2. Ejecución del Servidor
 ```bash
@@ -604,12 +609,8 @@ El proyecto incluye el archivo listo para importar en Postman:
 `Proyecto_Encuestas.postman_collection.json`
 
 #### Flujo de Pruebas Recomendado:
-1. **Roles:** Ejecutar `Listar todos los roles`.
-2. **Login:** Ejecutar `Login (Iniciar Sesión)` con el usuario administrador. El script de prueba de Postman guardará automáticamente el token en la variable `{{token}}`.
-3. **Perfil:** Ejecutar `Obtener Perfil Propio (GET /users/me)`.
-4. **Encuestas:** Ejecutar `Crear Encuesta`, lo que actualizará `{{surveyId}}`.
-5. **Preguntas:** Ejecutar `Crear Pregunta de Selección Múltiple con Opciones` y `Crear Pregunta Abierta`.
-6. **Consultar Encuesta Completa:** Ejecutar `Obtener Encuesta por ID` para verificar que la encuesta viene con sus preguntas y opciones anidadas.
-7. **Respuestas:** Ejecutar `Enviar Respuestas de Encuesta`.
-8. **Métricas:** Ejecutar `Consultar Estadísticas y Métricas Consolidadas`.
-
+1. Importa la colección y, en la pestaña **Variables**, completa en la columna *Current value*: `firebaseApiKey`, `adminEmail`, `adminPassword`, `studentEmail` y `studentPassword`, con cuentas reales del proyecto de Firebase.
+2. Ejecuta las carpetas en orden, de la 1 a la 9, o usa **Run collection**. Cada petición guarda los IDs y el token que necesita la siguiente.
+3. La carpeta 1 inicia sesión en Firebase. Sin ese paso, las demás rutas responden 401.
+4. Las preguntas y opciones solo se modifican en borrador, por eso la publicación está en la carpeta 7.
+5. Cada ejecución crea una encuesta nueva, ya que un usuario solo puede responder una vez cada encuesta.
